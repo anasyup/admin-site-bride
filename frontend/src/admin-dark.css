@@ -1,0 +1,154 @@
+/* ============================================================================
+ * ADMIN DARK MODE — applied when <html class="dark-admin"> is present.
+ * Phase 02 design system: JET BLACK + JET WHITE (no accent color).
+ *
+ * The neutral palette (bg-white, text-neutral-*, border-neutral-*) is driven
+ * by CSS variables in index.css (.dark-admin): #09090B page, #111113 cards,
+ * #17171A raised, #1D1D21 borders, #F4F4F5 text. This file only handles what
+ * variables CANNOT: shell chrome, Recharts SVG, tinted badges, hardcoded hex
+ * fills and scrollbars. Strictly monochrome — no gold, no violet, no colors.
+ * ========================================================================== */
+
+.dark-admin {
+  color-scheme: dark;
+}
+
+/* ── Admin shell wrapper (hardcoded light gray) → page background ────────── */
+.dark-admin .admin-shell { background: #09090B !important; color: #F4F4F5 !important; }
+
+/* ── Sidebar chrome ───────────────────────────────────────────────────────
+   REMOVED ON PURPOSE. These rules painted every `aside` descendant with one
+   flat grey:
+
+     .dark-admin aside a, .dark-admin aside span, .dark-admin aside button
+       { color: #A1A1AA !important; }
+     .dark-admin aside a:hover, .dark-admin aside a.active
+       { background: #17171A !important; color: #F4F4F5 !important; }
+
+   Because of `!important` they outranked everything, so in dark mode section
+   labels, nav labels, icons and the active row were all the identical grey,
+   and `:hover` beat the active state (`.dark-admin aside a:hover` is 0,2,1 vs
+   `.admin-shell .adm-row.is-active` at 0,3,0) — hovering a selected page made
+   it look unselected. `[class*=sidebar]` and `.active` matched nothing at all:
+   the nav uses `is-active`, and no class in the project contains "sidebar"
+   until this rebuild introduced `adm-sidebar`.
+
+   The shell is now token-driven (admin-shell.css + --admin-*), so dark mode
+   needs no overrides here — it only has to keep supplying the variables,
+   which `.dark-admin` in index.css already does. */
+
+/* ── TopBar chrome ──────────────────────────────────────────────────────── */
+.dark-admin header,
+.dark-admin .sticky.top-0 {
+  background: rgba(9, 9, 11, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-admin .bg-\[#F4F6F8\] { background-color: #09090B !important; }
+.dark-admin .bg-\[#f4f6f8\] { background-color: #09090B !important; }
+.dark-admin .bg-\[#EBEBEB\] { background-color: #0D0D0F !important; }
+.dark-admin .bg-\[#ebebeb\] { background-color: #0D0D0F !important; }
+
+/* ── Hardcoded light fills used in a few screens ────────────────────────── */
+.dark-admin .bg-\[#F1F1F1\] { background-color: #17171A !important; }
+.dark-admin .bg-\[#F1EEE8\] { background-color: #17171A !important; }
+.dark-admin .bg-\[#ECEBE8\] { background-color: #17171A !important; }
+.dark-admin .bg-\[#E5E2DD\] { background-color: #17171A !important; }
+.dark-admin .bg-\[#E5E7EB\] { background-color: #1D1D21 !important; }
+.dark-admin .bg-\[#e5e7eb\] { background-color: #1D1D21 !important; }
+.dark-admin .bg-\[#FAFAFA\] { background-color: #111113 !important; }
+.dark-admin .bg-\[#fafafa\] { background-color: #111113 !important; }
+.dark-admin .bg-\[#f6dfc4\] { background-color: rgba(255, 255, 255, 0.08) !important; }
+
+/* ── Status badges / pills — MONOCHROME (Phase 02 correction) ───────────
+   No colored badges. Status is communicated with white/black opacity
+   variations, typography and icons only. */
+.dark-admin .bg-emerald-50,  .dark-admin .bg-red-50,    .dark-admin .bg-amber-50,
+.dark-admin .bg-sky-50,      .dark-admin .bg-blue-50,   .dark-admin .bg-purple-50,
+.dark-admin .bg-indigo-50,   .dark-admin .bg-cyan-100,  .dark-admin .bg-orange-100,
+.dark-admin .bg-slate-50,    .dark-admin .bg-green-50   { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark-admin .bg-emerald-100, .dark-admin .bg-red-100,   .dark-admin .bg-amber-100,
+.dark-admin .bg-sky-100,     .dark-admin .bg-blue-100,  .dark-admin .bg-purple-100,
+.dark-admin .bg-green-100    { background-color: rgba(255, 255, 255, 0.14) !important; }
+
+.dark-admin .text-emerald-700, .dark-admin .text-red-700,   .dark-admin .text-amber-700,
+.dark-admin .text-sky-700,     .dark-admin .text-blue-700,  .dark-admin .text-purple-700,
+.dark-admin .text-green-600,   .dark-admin .text-red-600,   .dark-admin .text-amber-600,
+.dark-admin .text-sky-600,     .dark-admin .text-orange-600,.dark-admin .text-cyan-600,
+.dark-admin .text-emerald-600  { color: #F4F4F5 !important; }
+.dark-admin .text-emerald-800, .dark-admin .text-red-800,   .dark-admin .text-amber-800,
+.dark-admin .text-sky-800,     .dark-admin .text-blue-800,  .dark-admin .text-purple-800 { color: #D4D4D8 !important; }
+
+.dark-admin .ring-neutral-200 { --tw-ring-color: rgba(255, 255, 255, 0.14) !important; }
+.dark-admin .ring-emerald-200, .dark-admin .ring-red-200, .dark-admin .ring-amber-200,
+.dark-admin .ring-blue-200    { --tw-ring-color: rgba(255, 255, 255, 0.16) !important; }
+
+/* Phase 12 — leftover saturated utilities (legacy Orders, print, badges) */
+.dark-admin .bg-emerald-500, .dark-admin .bg-emerald-600, .dark-admin .bg-emerald-700,
+.dark-admin .bg-red-500,     .dark-admin .bg-red-600,     .dark-admin .bg-red-700,
+.dark-admin .bg-amber-400,   .dark-admin .bg-amber-500,   .dark-admin .bg-blue-500,
+.dark-admin .bg-blue-600,    .dark-admin .bg-green-50,    .dark-admin .bg-green-300 {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}
+.dark-admin .text-emerald-500, .dark-admin .text-amber-500, .dark-admin .text-red-500,
+.dark-admin .text-blue-600,    .dark-admin .text-green-800, .dark-admin .fill-amber-500,
+.dark-admin .text-orange-800,  .dark-admin .text-amber-900, .dark-admin .text-emerald-900,
+.dark-admin .text-blue-800,    .dark-admin .text-blue-900,  .dark-admin .text-red-900 {
+  color: #D4D4D8 !important;
+  fill: #D4D4D8 !important;
+}
+.dark-admin .border-red-200, .dark-admin .border-emerald-200, .dark-admin .border-amber-200,
+.dark-admin .border-blue-200, .dark-admin .border-red-300, .dark-admin .ring-green-300,
+.dark-admin .ring-amber-300, .dark-admin .ring-red-200 {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+
+/* ── Recharts (SVG inline attrs) ────────────────────────────────────────── */
+.dark-admin .recharts-cartesian-grid line {
+  stroke: #1D1D21 !important;
+}
+.dark-admin .recharts-cartesian-axis-tick text,
+.dark-admin .recharts-text,
+.dark-admin .recharts-polar-angle-axis-tick text {
+  fill: #71717A !important;
+}
+.dark-admin .recharts-default-tooltip,
+.dark-admin .recharts-tooltip-wrapper {
+  background-color: #111113 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-admin .recharts-default-tooltip .recharts-tooltip-label,
+.dark-admin .recharts-default-tooltip .recharts-tooltip-item {
+  color: #D4D4D8 !important;
+}
+.dark-admin .recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.04) !important;
+}
+.dark-admin .recharts-legend-item-text {
+  color: #A1A1AA !important;
+}
+
+/* ── KPI accent text + tinted icon bubbles (inline styles) ──────────────── */
+.dark-admin [style*="color: #111111"] { color: #F4F4F5 !important; }
+.dark-admin [style*="color: #0D0D0D"] { color: #F4F4F5 !important; }
+.dark-admin [style*="color: #0d0d0d"] { color: #F4F4F5 !important; }
+.dark-admin [style*="background: #11111114"],
+.dark-admin [style*="background: #0d0d0d14"] {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────── */
+.dark-admin ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark-admin ::-webkit-scrollbar-track {
+  background: #09090B;
+}
+.dark-admin ::-webkit-scrollbar-thumb {
+  background: #1D1D21;
+  border-radius: 6px;
+}
+.dark-admin ::-webkit-scrollbar-thumb:hover {
+  background: #2A2A2F;
+}

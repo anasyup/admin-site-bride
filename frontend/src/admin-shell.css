@@ -1,0 +1,996 @@
+/* ============================================================================
+ * ADMIN SHELL — sidebar + top bar + mobile drawer + collapsed rail
+ * ----------------------------------------------------------------------------
+ * WHY THIS FILE EXISTS
+ *   The admin already ships a complete token system in index.css:
+ *     :root            → light  (white editorial, canonical)
+ *     .dark-admin      → dark   (jet black)
+ *   The shell ignored it. AdminLayout.jsx painted every surface with
+ *   hardcoded hex utilities (bg-[#0A0A0A], text-[#6B6B6B], bg-[#1E1E1E]…),
+ *   so the theme toggle could only "fix" the sidebar by matching Tailwind's
+ *   escaped class names from a second stylesheet — which meant the light
+ *   theme stayed black, and admin-dark.css flattened every nav label, icon
+ *   and section header to one identical grey (#A1A1AA !important), destroying
+ *   the hierarchy.
+ *
+ *   Everything below is driven by var(--admin-*). One component, two themes,
+ *   zero escape-hack selectors. Identity change = change the tokens.
+ *
+ * DESIGN LANGUAGE — editorial minimal (sharp radii, hairlines, air)
+ *   radius     3px controls / 4px rows / 6px inputs — nothing pill-shaped
+ *   borders    1px hairline only; no shadow until the dropdown floats
+ *   type       11px tracked caps for section labels, 13.5px rows, tabular
+ *   motion     140ms ease-out, transforms only — respects reduced-motion
+ *
+ * NOTHING IS REMOVED
+ *   Every navigation entry, label and icon rendered by AdminLayout.jsx still
+ *   renders. This file only decides how it is drawn and where it sits.
+ * ========================================================================== */
+
+/* ── Geometry — the sidebar and the content offset must agree ──────────────
+   Sidebar width, rail width and the main column's left padding are one
+   system. They were hardcoded twice before (aside w-64 + main md:pl-64),
+   which is how they drift. Both sides read these two numbers. */
+.admin-shell {
+  --adm-sidebar-w: 224px;
+  --adm-rail-w: 56px;
+  --adm-topbar-h: 48px;
+  /* Shell-local text colours. Every one of them has a dark value in
+     .dark-admin, so the components never mention a hex again. */
+  --adm-nav: var(--admin-text-secondary);
+  --adm-nav-hover: var(--admin-text);
+  --adm-nav-active: var(--admin-text);
+  --adm-nav-icon: var(--admin-text-muted);
+  --adm-nav-icon-active: var(--admin-text);
+  --adm-label: var(--admin-text-muted);
+  --adm-hover-bg: var(--admin-accent-soft);
+  --adm-active-bg: var(--admin-accent-soft);
+  --adm-input-bg: var(--admin-surface-2);
+  --adm-sidebar-bg: var(--admin-sidebar);
+  --adm-avatar-bg: var(--admin-text);
+  --adm-avatar-fg: var(--admin-bg);
+  --adm-topbar-bg: color-mix(in srgb, var(--admin-bg) 92%, transparent);
+  --adm-dot-on: #16A34A;
+  --adm-dot-off: #DC2626;
+}
+
+/* Dark shell: same structure, inverted ink. The dark sidebar sits a shade
+   above the page so the split reads without a border doing all the work. */
+.dark-admin .admin-shell {
+  --adm-sidebar-w: 224px;
+  --adm-rail-w: 56px;
+  /* --admin-sidebar is #0D0D0F, one step off the #09090B page — too close to
+     read as a split. Lift the rail one surface step instead. */
+  --adm-sidebar-bg: #131316;
+  --adm-nav: #A1A1AA;
+  --adm-nav-hover: #F4F4F5;
+  --adm-nav-active: #FFFFFF;
+  --adm-nav-icon: #71717A;
+  --adm-nav-icon-active: #F4F4F5;
+  --adm-label: #71717A;
+  --adm-hover-bg: rgba(255, 255, 255, 0.055);
+  --adm-active-bg: rgba(255, 255, 255, 0.10);
+  --adm-input-bg: #111113;
+  --adm-avatar-bg: #F4F4F5;
+  --adm-avatar-fg: #0D0D0F;
+  --adm-topbar-bg: rgba(9, 9, 11, 0.88);
+  --adm-dot-on: #4ADE80;
+  --adm-dot-off: #F87171;
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.admin-shell {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-main-offset { transition: padding-left 180ms ease-out; }
+.admin-main-offset.is-open { padding-left: 0; }
+@media (min-width: 768px) {
+  .admin-main-offset.is-open { padding-left: var(--adm-sidebar-w); }
+  .admin-main-offset.is-rail { padding-left: var(--adm-rail-w); }
+}
+
+/* ── Sidebar frame ─────────────────────────────────────────────────────── */
+.adm-sidebar {
+  position: fixed;
+  inset-block: 0;
+  left: 0;
+  z-index: 40;
+  width: var(--adm-sidebar-w);
+  transition: width 180ms ease-out;
+}
+.adm-sidebar.is-rail { width: var(--adm-rail-w); }
+@media (max-width: 767.98px) { .adm-sidebar { display: none; } }
+
+.adm-sidebar-inner {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  background: var(--adm-sidebar-bg);
+  border-right: 1px solid var(--admin-border);
+  color: var(--admin-text);
+}
+
+/* ── Brand ─────────────────────────────────────────────────────────────── */
+.adm-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--adm-topbar-h);
+  flex: none;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  text-decoration: none;
+}
+.adm-brand-word {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.adm-brand-sub {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0e9f6e;
+  border: 1px solid rgba(14, 159, 110, 0.35);
+  background: rgba(14, 159, 110, 0.10);
+  border-radius: 5px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+/* Dark admin — brighter emerald chip so it stays legible on the navy rail. */
+.dark-admin .adm-brand-sub {
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+}
+/* Rail mode: the mark sits alone, optically centred, no wordmark. */
+.adm-sidebar.is-rail .adm-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+/* ── Global search (opens the command palette) ─────────────────────────── */
+.adm-search {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  background: var(--adm-input-bg);
+  padding: 0 10px;
+  height: 32px;
+  color: var(--adm-label);
+  font-size: 12.5px;
+  line-height: 1;
+  text-align: left;
+  transition: border-color 140ms ease-out, color 140ms ease-out, background-color 140ms ease-out;
+}
+.adm-search:hover { border-color: var(--admin-border); color: var(--adm-nav-hover); }
+.adm-search-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-kbd {
+  flex: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--adm-label);
+}
+.adm-searchwrap { padding: 10px 10px 6px; }
+.adm-sidebar.is-rail .adm-search {
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.adm-sidebar.is-rail .adm-search-txt,
+.adm-sidebar.is-rail .adm-kbd { display: none; }
+
+/* ── Scrolling nav column ──────────────────────────────────────────────── */
+.adm-nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 6px 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-border) transparent;
+}
+.adm-nav-scroll::-webkit-scrollbar { width: 8px; }
+.adm-nav-scroll::-webkit-scrollbar-track { background: transparent; }
+.adm-nav-scroll::-webkit-scrollbar-thumb {
+  background: var(--admin-border);
+  border-radius: 8px;
+}
+.adm-nav-scroll::-webkit-scrollbar-thumb:hover { background: var(--admin-border); }
+
+.adm-section { margin-bottom: 2px; }
+/* Hairline between sections in BOTH rails — one organised column each. */
+.adm-nav-scroll .adm-section + .adm-section,
+.set-rail .adm-section + .adm-section {
+  margin-top: 4px;
+  border-top: 1px solid var(--admin-border-subtle);
+}
+
+/* Editorial section label — tracked caps, hairline rule under it so the
+   column reads as groups rather than one long list. */
+.adm-eyebrow {
+  padding: 8px 8px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--adm-label);
+}
+.adm-sidebar.is-rail .adm-eyebrow { display: none; }
+
+/* ── Nav rows: one rhythm for links, group headers and children ──────────
+   32px rows, 8px horizontal padding, 20px icon slot, 8px gap. The icon slot
+   is a fixed box so every label starts on the same optical line whether the
+   glyph is 14px or 20px wide. */
+.adm-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--adm-nav);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.adm-row:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+.adm-row:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: -2px;
+}
+.adm-row.is-active {
+  background: var(--adm-active-bg);
+  color: var(--adm-nav-active);
+  font-weight: 600;
+}
+/* Active marker — a 2px editorial rule on the leading edge, not a pill. */
+.adm-row.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--admin-accent);
+}
+
+.adm-ico {
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  color: var(--adm-nav-icon);
+  transition: color 140ms ease-out;
+}
+.adm-row:hover .adm-ico,
+.adm-row.is-active .adm-ico { color: var(--adm-nav-icon-active); }
+
+/* Long labels ("Customer-Specific Pricing", "Marketplace Integrations")
+   must ellipsis inside the 264px column instead of overflowing the icon
+   column or forcing a horizontal scroll. */
+.adm-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-chev {
+  flex: none;
+  color: var(--adm-label);
+  transition: transform 180ms ease-out;
+}
+.adm-chev.is-open { transform: rotate(180deg); }
+
+/* ── Rail (collapsed) mode — icon only, everything centred ─────────────── */
+.adm-sidebar.is-rail .adm-row {
+  justify-content: center;
+  height: 34px;
+  width: 34px;
+  margin-inline: auto;
+  padding: 0;
+}
+.adm-sidebar.is-rail .adm-txt,
+.adm-sidebar.is-rail .adm-chev { display: none; }
+.adm-sidebar.is-rail .adm-row.is-active::before { display: none; }
+.adm-sidebar.is-rail .adm-row.is-active {
+  /* Centred rail rows carry the active state as a filled square instead of a
+     left rule, which would sit off-centre on a 36px button. */
+  box-shadow: inset 0 0 0 1px var(--admin-border);
+}
+.adm-sidebar.is-rail .set-kids { display: none; }
+.adm-railstack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Sidebar footer / account ──────────────────────────────────────────── */
+.adm-acct {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--admin-border);
+}
+.adm-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--adm-avatar-bg);
+  color: var(--adm-avatar-fg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.adm-acct-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--admin-text);
+}
+.adm-acct-role {
+  overflow: hidden;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--adm-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-sidebar.is-rail .adm-acct { justify-content: center; padding: 10px 0; }
+
+/* `display` lives in :where() so Tailwind's responsive display utilities
+   (`hidden`, `md:grid`) keep winning the cascade — without this, the shell
+   stylesheet (loaded last) forced every icon button visible on every
+   viewport, which is how the top bar showed TWO open/close controls. */
+:where(.adm-iconbtn) { display: grid; place-items: center; }
+.adm-iconbtn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--adm-nav-icon);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.adm-iconbtn:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+.adm-iconbtn:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+
+/* ── Top bar ───────────────────────────────────────────────────────────── */
+/* ── Top bar — the boss's header spec, token-driven so the dark theme
+      inherits the same geometry with inverted ink. ─────────────────── */
+.adm-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--adm-topbar-h);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--admin-border-subtle);
+  background: var(--admin-bg);
+}
+
+.tb-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
+/* display lives in :where() so Tailwind's `hidden` / `md:hidden` utilities
+   win the cascade — without that, both viewport buttons rendered at once
+   (the two-button bug from the screenshot). */
+:where(.tb-menu) { display: grid; place-items: center; }
+.tb-menu {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--admin-border-subtle);
+  background: var(--admin-bg);
+  border-radius: 8px;
+
+  color: var(--admin-text);
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+.tb-menu:hover { border-color: var(--admin-accent); background: var(--adm-hover-bg); }
+.tb-div { width: 1px; height: 16px; flex: none; background: var(--admin-border-subtle); }
+/* index.css forces 20px on h1 with !important — this beats it (higher
+   specificity, same flag) so the spec's 15px/700 title wins. */
+.admin-shell .tb-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.3px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--admin-text);
+}
+
+.tb-right { display: flex; align-items: center; gap: 8px; flex: none; }
+/* on tight screens the status pill yields space before anything wraps */
+@media (max-width: 639.98px) {
+  .tb-pill { display: none; }
+}
+
+.tb-pill {
+  height: 30px;
+  background: #ecfdf5;
+  border: 1px solid #d1fae5;
+  border-radius: 20px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #065f46;
+  white-space: nowrap;
+}
+.tb-pill.off { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.tb-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+.tb-pill.off .tb-dot { background: #ef4444; }
+.dark-admin .tb-pill { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3); color: #6ee7b7; }
+.dark-admin .tb-pill.off { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+.dark-admin .tb-dot { background: #34d399; }
+.dark-admin .tb-pill.off .tb-dot { background: #f87171; }
+
+.tb-create {
+  height: 30px;
+  background: var(--admin-accent);
+  color: var(--adm-avatar-fg);
+  border: 1px solid var(--admin-accent);
+  border-radius: 20px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+.tb-create:hover { background: var(--admin-accent-hover); border-color: var(--admin-accent-hover); }
+
+.tb-view {
+  height: 30px;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--admin-text);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+.tb-view:hover { border-color: var(--admin-accent); background: var(--adm-hover-bg); }
+
+.tb-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border-subtle);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--admin-text);
+  position: relative;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+.tb-icon:hover { border-color: var(--admin-accent); background: var(--adm-hover-bg); }
+.tb-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  border: 2px solid var(--admin-bg);
+}
+
+.tb-menu:focus-visible, .tb-create:focus-visible, .tb-view:focus-visible, .tb-icon:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+.adm-crumb {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--adm-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.adm-chip) { display: inline-flex; align-items: center; }
+.adm-chip {
+  gap: 7px;
+  height: 30px;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--adm-nav);
+  font-size: 12.5px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 140ms ease-out, color 140ms ease-out, border-color 140ms ease-out;
+}
+.adm-chip:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+.adm-chip:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+.adm-chip.solid {
+  border-color: var(--admin-accent);
+  background: var(--admin-accent);
+  color: var(--adm-avatar-fg);
+}
+.adm-chip.solid:hover { background: var(--admin-accent-hover); border-color: var(--admin-accent-hover); color: var(--adm-avatar-fg); }
+
+.adm-dot { flex: none; width: 6px; height: 6px; border-radius: 999px; }
+.adm-dot.on { background: var(--adm-dot-on); }
+.adm-dot.off { background: var(--adm-dot-off); }
+
+/* Floating menu (Quick Create) */
+.adm-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: 232px;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  background: var(--admin-surface);
+  padding: 4px;
+  box-shadow: var(--admin-shadow-lg);
+}
+.adm-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  border-radius: 3px;
+  padding: 0 8px;
+  color: var(--adm-nav);
+  font-size: 13px;
+  text-decoration: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.adm-pop-row:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+
+/* ── Mobile drawer ─────────────────────────────────────────────────────── */
+.adm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.45);
+}
+:where(.adm-drawer) { display: flex; }
+.adm-drawer {
+  position: fixed;
+  inset-block: 0;
+  left: 0;
+  z-index: 51;
+  width: min(86vw, 264px);
+  background: var(--adm-sidebar-bg);
+  border-right: 1px solid var(--admin-border);
+}
+/* The close control lives in the brand row's own box (not floating over it),
+   so it can never sit on top of the wordmark. */
+.adm-drawer .adm-brand { padding-right: 44px; }
+.adm-drawer-close {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .adm-sidebar,
+  .admin-shell .admin-main-offset,
+  .admin-shell .adm-row,
+  .admin-shell .adm-chev,
+  .admin-shell .adm-search,
+  .admin-shell .adm-chip,
+  .admin-shell .adm-iconbtn { transition: none; }
+}
+
+/* ── Print ─────────────────────────────────────────────────────────────── */
+@media print {
+  .admin-shell .adm-sidebar,
+  .admin-shell .adm-topbar { display: none !important; }
+  .admin-shell .admin-main-offset { padding-left: 0 !important; }
+}
+
+/* ============================================================================
+ * SETTINGS CONSOLE — the settings page's own sidebar (rail) + pane.
+ * Injected by AdminLayout on /admin/settings/* so every settings screen,
+ * real or reserved, shares one organised rail. Shopify-style: group label,
+ * indented items, hairline separation.
+ * ========================================================================== */
+
+.set-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+/* The rail is the settings page's own sidebar: a bordered column with a
+   sticky header, hairline-separated groups and one row rhythm. */
+.set-rail {
+  flex: none;
+  width: 236px;
+  position: sticky;
+  top: calc(var(--adm-topbar-h) + 24px);
+  max-height: calc(100vh - var(--adm-topbar-h) - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 14px;
+  border-right: 1px solid var(--admin-border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-border) transparent;
+}
+.set-rail::-webkit-scrollbar { width: 8px; }
+.set-rail::-webkit-scrollbar-thumb { background: var(--admin-border); border-radius: 8px; }
+
+/* Sticky rail header — back link + page title stay put while the list
+   scrolls under a hairline. */
+.set-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--admin-bg);
+  padding: 2px 0 10px;
+  border-bottom: 1px solid var(--admin-border);
+  margin-bottom: 4px;
+}
+.set-title {
+  padding: 0 8px;
+  color: var(--admin-text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.set-group {
+  padding: 10px 8px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--adm-label);
+}
+.set-kids {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px 0 6px;
+}
+.set-item { height: 29px; font-size: 13px; }
+.set-item .adm-txt { letter-spacing: 0.005em; }
+
+/* Collapsible group parent: reads like a top-level row; when its group owns
+   the route it goes semibold but keeps no fill — the CHILD carries the
+   highlight, exactly like the reference. */
+.set-parent.is-active { background: transparent; }
+.set-parent.is-active::before { display: none; }
+
+/* Children: icon-less indented text rows (reference pattern). The indent
+   lines the text up under the parent's label (8px pad + 18px icon + 8px gap). */
+.adm-child {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px 0 34px;
+  border-radius: 4px;
+  color: var(--adm-nav);
+  font-size: 12.5px;
+  line-height: 1.2;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.adm-child:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+.adm-child:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+.adm-child.is-active {
+  background: var(--adm-active-bg);
+  color: var(--adm-nav-active);
+  font-weight: 600;
+}
+.adm-child.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--admin-accent);
+}
+
+.set-pane { min-width: 0; }
+
+/* Reserved destination pane */
+.set-reserved {
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface);
+  padding: 28px;
+  max-width: 640px;
+}
+.set-reserved-title { margin-top: 2px; }
+.set-reserved-desc {
+  margin-top: 10px;
+  max-width: 52ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--admin-text-secondary);
+}
+.set-reserved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Bottom-of-sidebar Settings entry */
+.adm-setbtnwrap {
+  flex: none;
+  padding: 6px 8px;
+  border-top: 1px solid var(--admin-border);
+}
+
+/* Tablet / phone: the rail lives in the drawer the hamburger opens, so the
+   header stays identical on every page and the content gets full width. */
+@media (max-width: 1023.98px) {
+  .set-wrap .set-rail { display: none; }
+}
+
+.set-drawer {
+  position: fixed;
+  inset-block: 0;
+  left: 0;
+  z-index: 51;
+  display: flex;
+  width: min(86vw, 300px);
+  background: var(--adm-sidebar-bg);
+  border-right: 1px solid var(--admin-border);
+}
+.set-drawer .adm-drawer-close { position: absolute; right: 8px; top: 10px; z-index: 1; }
+.set-drawer .set-rail {
+  position: static;
+  width: 100%;
+  max-height: none;
+  overflow-y: auto;
+  border-right: 0;
+  padding: 12px 10px 16px;
+}
+.set-drawer .set-head { position: static; }
+
+/* Back-to-admin link at the top of the settings rail (the console has no
+   main sidebar of its own). */
+.set-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--adm-label);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.set-back:hover { background: var(--adm-hover-bg); color: var(--adm-nav-hover); }
+.set-back:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+
+/* ============================================================================
+ * NOTIFICATIONS — bell dropdown (nb-*) and Inbox page (ib-*).
+ * Calm by design: severity dot, one-line bodies, hairline rows.
+ * ========================================================================== */
+
+.nb-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-lg);
+  overflow: hidden;
+}
+.nb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--admin-border);
+}
+.nb-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-text);
+}
+.nb-act {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--adm-label);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 140ms ease-out;
+}
+.nb-act:hover { color: var(--adm-nav-hover); }
+.nb-list { max-height: 384px; overflow-y: auto; }
+.nb-empty { padding: 36px 12px; text-align: center; font-size: 12px; color: var(--adm-label); }
+.nb-row {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border-subtle);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+.nb-row:last-child { border-bottom: 0; }
+.nb-row:hover { background: var(--adm-hover-bg); }
+.nb-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; }
+.nb-t { font-size: 13px; font-weight: 700; color: var(--admin-text); }
+.nb-row.read .nb-t { font-weight: 500; color: var(--adm-nav); }
+.nb-b {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--adm-label);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nb-at { margin-top: 3px; font-size: 11px; color: var(--adm-label); opacity: 0.85; }
+.nb-foot { display: flex; justify-content: center; padding: 8px; border-top: 1px solid var(--admin-border); }
+
+/* ── Inbox page ─────────────────────────────────────────────────────────── */
+.ib-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.ib-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--admin-text); }
+.ib-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--admin-border);
+  margin-bottom: 6px;
+}
+.ib-tab {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-bg);
+  color: var(--adm-nav);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out, border-color 140ms ease-out;
+}
+.ib-tab:hover { border-color: var(--admin-accent); color: var(--adm-nav-hover); }
+.ib-tab.is-active {
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+  color: var(--adm-avatar-fg);
+}
+.ib-list { border-bottom: 1px solid var(--admin-border-subtle); }
+.ib-row {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border-subtle);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+.ib-row:hover { background: var(--adm-hover-bg); }
+.ib-row .nb-dot { margin-top: 7px; }
+.ib-row .nb-t { font-size: 14px; font-weight: 700; }
+.ib-row .nb-b { -webkit-line-clamp: 2; }
+.ib-unread {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 8px;
+  background: var(--admin-accent);
+}
+.ib-empty { padding: 64px 16px; text-align: center; }
+.ib-empty-t { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--admin-text); }
+.ib-empty-b { margin-top: 4px; font-size: 12.5px; color: var(--adm-label); }
+
+/* ── Luxury display face for admin headings (self-hosted, OFL) ──────────── */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/fonts/Fraunces-Latin.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+.od-display {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}

@@ -1,0 +1,1111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+ * HUSHAE design system — Silk Eclipse
+ *
+ * Tokens live in tailwind.config.js (type scale, spacing, radii, shadows,
+ * durations). This file turns them into the handful of component classes the
+ * storefront actually composes with. Anything used more than twice belongs
+ * here rather than being re-typed as utilities on each call site.
+ * ========================================================================== */
+
+/* ── Theme-aware neutral/white/black tokens (RGB triplets) ────────────────
+   tailwind.config maps these to `rgb(var(--x) / <alpha-value>)`. :root holds
+   the LIGHT values — the storefront and the admin share one light palette
+   (the admin dark theme was removed). */
+:root {
+  /* Pure white — the light surface */
+  --tw-white: 255 255 255;
+  --tw-black: 26 27 28;      /* QA charcoal #1A1B1C */
+  --n50:  255 255 255;
+  --n100: 245 245 245;
+  --n200: 235 235 235;   /* borders #EBEBEB */
+  --n300: 220 220 220;
+  /* #6B7280 (was #AAAAAA) — WCAG AA fix. #AAAAAA measured 2.32:1 on white,
+     below the 4.5:1 floor for the 12-13px secondary text that uses
+     text-neutral-400 (KPI compare labels, payment method, empty states).
+     #6B7280 = 4.83:1 on white / 4.63:1 on #FFFFFF. Exception: the dark
+     "Smart insight" card uses text-gray-400 (#9CA3AF) instead — a single
+     gray cannot pass on both white and near-black. */
+  --n400: 107 114 128;
+  --n500: 112 112 112;   /* CDLP gray #707070 */
+  --n600: 112 112 112;
+  --n700: 90 90 90;
+  --n800: 60 60 60;
+  --n900: 17 17 17;      /* text #111111 */
+  --n950: 17 17 17;
+}
+
+/* Admin palette — DARK-FIRST design system (Phase 01).
+   Dark editorial luxury + modern commerce OS. Default theme is dark;
+   the sun/moon toggle remains for legacy preference, but the design
+   system is the jet black + jet white register below. */
+.dark-admin {
+  --tw-white: 17 17 19;      /* cards / panels #111113  (admin-surface) */
+  --tw-black: 9 9 11;        /* page background #09090B  (admin-bg)     */
+  --n50:  17 17 19;          /* surface #111113 */
+  --n100: 23 23 26;          /* raised / hover #17171A (surface-2) */
+  --n200: 29 29 33;          /* borders #1D1D21 (surface-3) */
+  --n300: 39 39 44;          /* input borders #27272C */
+  --n400: 66 66 72;          /* disabled #424248 */
+  --n500: 113 113 122;       /* muted text #71717A */
+  --n600: 113 113 122;
+  --n700: 161 161 170;       /* secondary text #A1A1AA */
+  --n800: 161 161 170;
+  --n900: 244 244 245;       /* primary text #F4F4F5 */
+  --n950: 244 244 245;
+  /* QA tokens under dark admin — insurance so any component that inherits
+     body colour/background stays dark-correct. */
+  --stone: 9 9 11;
+  --sand:  17 17 19;
+  --clay:  29 29 33;
+  --charcoal: 244 244 245;
+  --smoke: 113 113 122;
+  --gold:  255 255 255;      /* admin accent — jet white */
+  --bronze: 228 228 231;     /* accent hover — muted white */
+  --midnight: 9 9 11;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * QUIET ARCHITECTURE (QA) — HUSHAE custom theme tokens
+ * DNA: Japanese minimalism × Pakistani craftsmanship × Italian luxury.
+ *   "Whisper, don't shout. Space is the luxury. Motion reveals, never
+ *    attacks."
+ *
+ * Phase 1 (foundation) — variables are DEFINED here but no component uses
+ * them yet, so nothing visual changes until Phase 2 swaps the call sites.
+ * RGB triplets are the hex values decomposed for Tailwind, which maps these
+ * to `rgb(var(--x) / <alpha-value>)` so opacity utilities (bg-sand/60 …)
+ * keep working — same pattern as the --tw-white / --n* scale above.
+ * NOTE: tailwind.config's `stone` / `clay` class tokens are NOT wired to
+ * these variables yet — ~27 legacy border-bronze / bg-bronze call sites stay
+ * on their current values until Phase 2 migrates them (re-valuing now would
+ * silently erase button/input borders).
+ * ════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── CK MONOCHROME — clean white / black / gray (Calvin Klein register) ──
+     No warm ivory, no sage, no rounded template signals. */
+  --stone:    255 255 255;   /* #FFFFFF  page background            */
+  --sand:     255 255 255;   /* #FFFFFF  light surface (whitened)    */
+  --clay:     229 229 229;   /* #E5E5E5  hairline borders           */
+  --charcoal: 17 17 17;      /* #111111  primary text / buttons     */
+  --smoke:    105 105 105;   /* #696969  CK secondary gray */
+  --pearl:    255 255 255;   /* #FFFFFF  accents on dark            */
+  --gold:     201 169 110;   /* #C9A96E  subtle accent (kept)       */
+  --bronze:   166 138 86;    /* #A68A56  dark gold hover            */
+  --midnight: 17 17 17;      /* #111111  footer / primary buttons   */
+
+  /* ── Typography — 100% Inter; mono reserved for chapter counters ──── */
+  --font-display: 'Klein', 'Jost', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body:    'Klein', 'Jost', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-product: 'Klein', 'Jost', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* ── Spacing / layout ─────────────────────────────────────────────── */
+  --section-padding:        160px;   /* desktop vertical rhythm    */
+  --section-padding-mobile: 80px;
+  --card-gap:               2px;     /* architectural mosaic grid  */
+  --card-gap-mobile:        8px;
+  --content-max:            1440px;  /* container ceiling          */
+  --nav-height:             96px;    /* authoritative navigation   */
+  --bar-height:             24px;    /* ultra-thin announcement bar */
+
+  /* ── Motion — "Breath": slow, deliberate, purposeful ──────────────── */
+  --ease-luxury:      cubic-bezier(0.25, 1, 0.5, 1);  /* drawers, reveals */
+  --duration-reveal:  650ms;                          /* scroll reveal    */
+  --duration-hover:   400ms;                          /* image hover      */
+  --duration-fast:    250ms;                          /* button hover     */
+}
+
+@layer base {
+  /* Never let viewport-bleed editorial sections create a page-wide horizontal
+     scrollbar. Individual product rails still use their own overflow-x-auto. */
+  html { @apply max-w-full scroll-smooth; overflow-x: clip; }
+  /* QA — warm stone page, off-black text (Quiet Architecture palette) */
+  body { @apply max-w-full overflow-x-clip bg-stone text-charcoal font-sans antialiased; }
+  ::selection { @apply bg-satin text-obsidian; }
+
+  /* ── Quiet Architecture typography ────────────────────────────────────
+     Headings are Inter weight 300 (light) — the quiet architectural voice.
+     The admin shell forces its own 600-weight headings with !important, so
+     the lightening never touches the admin panel. */
+
+  /* ── Calvin Klein typography ────────────────────────────────────────────
+     Every storefront heading inherits the Helvetica family (Family Klein →
+     Helvetica Neue → Helvetica → Arial — the CK stack) and renders UPPERCASE
+     with open tracking, exactly how CK sets its headlines. Components that
+     need sentence case add `normal-case` locally. Admin is scoped by
+     `.admin-shell` below and is untouched by these rules. */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-medium uppercase;
+  }
+  input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* Keyboard users get a visible ring everywhere; pointer users never see it.
+     Before this, the storefront had no focus styling at all. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    @apply outline-none ring-2 ring-obsidian ring-offset-2 ring-offset-alabaster;
+    border-radius: 0.375rem;
+  }
+  /* Form fields stay borderless-line — never a white offset box on focus.
+     MEASURED: this rule used `input:focus, input:focus-visible { box-shadow:
+     none !important }`, which does not just suppress the offset box — it
+     destroys the ring the rule above paints, because a Tailwind `ring` IS a
+     box-shadow. Result: NO visible focus indicator at all on the account
+     email/password fields, the checkout fields, the remember-me checkbox and
+     the footer newsletter input. A keyboard shopper could not tell which
+     field they were in.
+
+     The intent was only to stop the ring-OFFSET halo on line inputs, so the
+     suppression is now scoped to mouse :focus and the ring is restored for
+     :focus-visible with offset 0 — flush to the field, no white box, still
+     clearly visible. Checkboxes and radios keep the offset ring since they
+     are not line inputs. */
+  input:focus:not(:focus-visible),
+  select:focus:not(:focus-visible),
+  textarea:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+    -webkit-box-shadow: none;
+  }
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-obsidian;
+    --tw-ring-offset-width: 0px;
+    border-radius: 0.125rem;
+  }
+  input[type='checkbox']:focus-visible,
+  input[type='radio']:focus-visible {
+    --tw-ring-offset-width: 2px;
+    border-radius: 0.25rem;
+  }
+  /* On dark surfaces the ring inverts so it stays visible. */
+  .on-dark :where(a, button, [tabindex]):focus-visible {
+    @apply ring-alabaster ring-offset-obsidian;
+  }
+
+  /* Respect the OS "reduce motion" setting — required for WCAG 2.3.3. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── Order confirmation "3D" — accent only, never decoration ───────────
+     A slow float for the gold confirmation badge and a gentle perspective
+     settle for the order card. Both are respects-reduced-motion-safe via
+     the global rule above. */
+  @keyframes float-3d {
+    0%, 100% { transform: translateY(0) rotateX(0deg); }
+    50%      { transform: translateY(-8px) rotateX(6deg); }
+  }
+  @keyframes card-3d-in {
+    0%   { opacity: 0; transform: perspective(1200px) rotateX(7deg) translateY(20px); }
+    100% { opacity: 1; transform: perspective(1200px) rotateX(0deg) translateY(0); }
+  }
+  @keyframes check-pop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Skip link — first tab stop on every page. */
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus-visible {
+    @apply not-sr-only fixed left-4 top-4 z-[100] rounded-control bg-obsidian px-4 py-2.5 text-btn-sm font-semibold uppercase text-alabaster;
+  }
+}
+
+@layer components {
+
+  /* ── Typography (luxury fashion register — tracked caps on display face) */
+  .h1 { @apply font-display text-h1 font-normal uppercase text-obsidian; }
+  .h2 { @apply font-display text-h2 font-normal uppercase text-obsidian; }
+  .h3 { @apply font-display text-h3 font-normal uppercase text-obsidian; }
+  .h4 { @apply font-display text-h4 font-normal uppercase text-obsidian; }
+  .h5 { @apply font-display text-h5 font-normal uppercase text-obsidian; }
+  .h6 { @apply font-display text-h6 font-normal uppercase tracking-wider text-obsidian; }
+  .display-1 { @apply font-display text-display-1 font-normal uppercase; }
+  .display-2 { @apply font-display text-display-2 font-normal uppercase; }
+  /* Gucci-style editorial serif — Didot register for brand-story accents */
+  .display-serif { @apply font-display text-h2 font-light uppercase text-obsidian; }
+  .body-lg { @apply text-body-lg text-ink; }
+  .body    { @apply text-body text-ink; }
+  .body-sm { @apply text-body-sm text-ash; }
+  .caption { @apply text-caption text-ash; }
+  .eyebrow { @apply text-label font-semibold uppercase text-ash; }
+
+  /* ── Section heading ──────────────────────────────────────────────────────
+     MEASURED: peer-level section titles on the homepage rendered three
+     different ways —
+       30px / 300 / 4.2px tracking  (Shop the Edit, Objects of Desire, Subscribe)
+       24px / 500 / 0.6px tracking  (Essential Categories)  <- weight AND
+                                     tracking outliers; 0.6px is an order of
+                                     magnitude tighter than its siblings
+       24px / 300 / 2.4px tracking  (editorial h3s)
+     Three treatments for one job reads as unfinished. The 30px/300/wide
+     setting is the dominant one and the one that matches the LV register the
+     product cards already use, so it becomes the single primitive.
+
+     `.section-title` is for peer-level section headings (h2). `.section-eyebrow`
+     is the kicker above it. Editorial h3s inside a section keep their smaller
+     setting via `.section-title-sm` — that is a genuine level change, not drift. */
+  .section-title {
+    @apply font-display text-2xl font-light uppercase tracking-[0.14em] text-obsidian md:text-3xl;
+  }
+  .section-title-sm {
+    @apply font-display text-xl font-light uppercase tracking-[0.1em] text-obsidian md:text-2xl;
+  }
+  .section-eyebrow {
+    @apply text-[10px] font-medium uppercase tracking-[0.3em] text-ash;
+  }
+
+  /* Product-card title — minimal luxury (LV register).
+     UPPERCASE with open tracking — the quiet-luxury house convention (LV,
+     CK, The Row). Weight stays regular: the air between the caps, not the
+     weight, is what makes it read as luxury. Same family as nav and body. */
+  .product-card-title {
+    font-family: var(--font-product);
+    font-size: 13px;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.3;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #111111;
+    font-synthesis: none;
+  }
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  /* PHASE 3 — the desktop shell.
+     MEASURED before: max-w-7xl froze every page at 1280px, so a 1920 screen
+     showed 640px of empty margin (33%) and a 2560 screen 1280px (50%). The
+     product grid, cards and PDP frame were identical at all three widths.
+     Mobile and tablet are UNTOUCHED: below xl this is the same
+     `w-full px-4 md:px-8` box it always was. The width only opens from xl up,
+     in measured steps, and stops at 1840 — filling a 2560 display edge to edge
+     would read as a catalogue, not an edit. */
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 md:px-8
+           xl:max-w-[1360px] xl:px-10
+           2xl:max-w-[1560px] 2xl:px-14
+           3xl:max-w-shell 3xl:px-16;
+  }
+  .section-y      { @apply py-sect-y md:py-sect-y-lg; }
+
+  /* Legacy layout tokens — kept as thin aliases so the Blog, FabricTech,
+     FitFinder and BundleBuilder pages resolve identically after tokens.css
+     was retired. Values preserved byte-for-byte from tokens.css. */
+  .container { @apply mx-auto w-full max-w-[1440px] px-5 md:px-[80px]; }
+  .section   { @apply py-14 md:py-24; }
+
+  /* ── Buttons ──────────────────────────────────────────────────────────── */
+  /* Shared skeleton — every variant inherits size, focus and disabled rules,
+     so a new variant cannot drift out of step. */
+  /* min-height, not extra padding: buttons already taller than 44px are
+     untouched, so this cannot move any existing layout. Measured on the bag —
+     .btn rendered 41px and .btn-sm 31px, both under WCAG 2.5.5. */
+  /* PHASE 4 — buttons.
+     The old set was five filled pills. A pill is friendly, soft and generic; it
+     is the shape of a consumer app, not of a fashion house. Every variant below
+     is squared (radius token = 2px), and the label carries wide tracking so a
+     13px uppercase word reads as considered rather than shouted.
+     `letter-spacing` does most of the work here: at 0.16em a short uppercase
+     label stops looking like UI chrome and starts looking like a caption in a
+     lookbook. Transitions cover colour AND tracking, so hover feels like the
+     word settling rather than a box lighting up. */
+  .btn {
+    @apply inline-flex min-h-[44px] select-none items-center justify-center gap-2
+      rounded-control text-btn font-medium uppercase
+      transition-[background-color,color,border-color,letter-spacing] duration-base
+      ease-standard active:scale-[0.99] disabled:pointer-events-none disabled:opacity-40
+      motion-reduce:transition-none;
+    padding: 0.875rem 2rem;
+  }
+  .btn-sm { @apply min-h-[44px] text-btn-sm; padding: 0.625rem 1.25rem; }
+  .btn-lg { padding: 1.125rem 2.75rem; }
+
+  /* ── Hero action ──────────────────────────────────────────────────────────
+     V2. MEASURED: the hero marks rendered 49px tall under a 118px cover line.
+     A hero is the one place on the site where the action has to hold its own
+     against display type, and 49px does not.
+     56px of height, wider tracking, and the tracking OPENS on hover — the word
+     settles rather than the box lighting up. The transition list already
+     includes letter-spacing on `.btn`, so this inherits it. */
+  .hero-cta {
+    @apply min-h-[56px] tracking-[0.2em] hover:tracking-[0.24em];
+    padding: 1.125rem 2.75rem;
+  }
+
+  .btn-primary   { @apply btn bg-charcoal text-pearl hover:bg-graphite; }
+  .btn-secondary { @apply btn bg-satin text-obsidian hover:bg-sand; }
+  /* The outline is HUSHAE's signature action: a hairline that fills from
+     nothing. Border weight stays 1px at every size — a thicker rule reads as a
+     form control. */
+  .btn-outline   { @apply btn border border-obsidian/30 text-obsidian hover:border-obsidian hover:bg-obsidian hover:text-alabaster; }
+  .btn-ghost     { @apply btn text-obsidian hover:bg-satin/50; }
+  .btn-danger    { @apply btn bg-red-600 text-white hover:bg-red-700; }
+
+  /* ── Editorial CTA ────────────────────────────────────────────────────────
+     Not a button at all: a word with a rule under it that draws itself in from
+     the left on hover. This is the link style for editorial blocks, banners and
+     anywhere a filled rectangle would fight the photography.
+     The rule is a pseudo-element rather than an underline so it can animate its
+     scale without touching the text baseline. */
+  /* PHASE 7. MEASURED: every editorial CTA on the homepage rendered 85x15px —
+     a 15px-tall tap target with an 11px label. It read as a footnote, not as
+     the primary action of a section, and it sat far under the 44px WCAG 2.5.5
+     minimum.
+     Now a real affordance: 44px of height from padding, a 12px label, and the
+     rule moved to the FULL width of the block so it reads as a drawn line
+     rather than an underline hugging the words. `items-end` keeps the type
+     optically on the rule while the box grows upward. */
+  .cta-editorial {
+    @apply relative inline-flex min-h-[44px] items-center gap-2.5 pb-3 pt-3 text-btn-sm font-semibold uppercase
+      tracking-[0.22em] text-obsidian transition-colors duration-base ease-standard
+      after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left
+      after:scale-x-100 after:bg-current after:transition-transform after:duration-slow
+      after:ease-standard hover:text-graphite hover:after:scale-x-[1.04] motion-reduce:after:transition-none;
+  }
+  /* Over photography the same CTA inverts to ivory. */
+  .cta-editorial-light { @apply cta-editorial text-alabaster; }
+
+  /* ── Image CTA ────────────────────────────────────────────────────────────
+     For a caption sitting directly on a photograph. No fill, no border — the
+     rule alone carries it, and a soft text-shadow keeps it legible over a
+     mid-tone without a scrim darkening the image. */
+  /* Same correction over photography. The rule now rests at 40% and draws to
+     full on hover — visible enough to read as an action at a glance, with the
+     completion reserved for intent. */
+  .cta-image {
+    @apply relative inline-flex min-h-[44px] items-center gap-2.5 pb-3 pt-3 text-btn-sm font-semibold uppercase
+      tracking-[0.22em] text-alabaster
+      after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left
+      after:scale-x-[0.4] after:bg-alabaster after:transition-transform after:duration-slow
+      after:ease-standard hover:after:scale-x-100 motion-reduce:after:transition-none;
+    text-shadow: 0 1px 12px rgb(17 17 17 / 0.35);
+  }
+
+  /* Icon-only. 44px keeps it at the WCAG 2.5.5 minimum target size. */
+  .btn-icon {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-full text-obsidian
+      transition-colors duration-base ease-standard hover:bg-satin/60
+      disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-icon-sm { @apply btn-icon h-9 w-9; }
+
+  /* ── Form controls ────────────────────────────────────────────────────── */
+  .input {
+    @apply w-full rounded-control border border-line bg-white/70 px-4 py-3 text-body text-obsidian
+      placeholder:text-ash/60 transition-colors duration-base
+      focus:border-obsidian/40 focus:bg-white
+      disabled:cursor-not-allowed disabled:bg-satin/40 disabled:text-ash;
+  }
+  .input-sm { @apply rounded-control px-3 py-2 text-body-sm; }
+  .input-error { @apply border-red-400 focus:border-red-500; }
+  .textarea { @apply input resize-y leading-relaxed; min-height: 6.5rem; }
+  .select   { @apply input cursor-pointer pr-9 appearance-none; }
+  .label { @apply mb-1.5 block text-label font-semibold uppercase text-ash; }
+  .field-hint  { @apply mt-1.5 text-caption text-ash; }
+  .field-error { @apply mt-1.5 flex items-center gap-1.5 text-caption font-medium text-red-600; }
+
+  /* Search field — the leading icon is positioned by the wrapper. */
+  .search-wrap { @apply relative; }
+  .search-wrap .input { @apply pl-10; }
+  .search-wrap > svg:first-child {
+    @apply pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ash;
+  }
+
+  /* Quantity stepper */
+  .qty {
+    @apply inline-flex items-center rounded-full border border-line bg-white;
+  }
+  /* 44px is the WCAG 2.5.5 minimum. The size class the component passes wins
+     over this base, so the base must already be compliant — an h-10 base
+     silently capped every "sm" stepper at 40px on mobile. */
+  .qty button {
+    @apply grid h-11 w-11 place-items-center rounded-full text-obsidian
+      transition-colors duration-fast hover:bg-satin/60
+      disabled:pointer-events-none disabled:text-ash/40;
+  }
+  .qty output { @apply min-w-8 text-center text-body font-semibold tabular-nums; }
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+  .card         { @apply rounded-card border border-line bg-white/60; }
+  .card-product { @apply group relative overflow-hidden rounded-card bg-cream; }
+  .card-content { @apply rounded-card border border-line bg-white p-5 shadow-e-1 md:p-6; }
+  .panel        { @apply rounded-panel border border-line bg-alabaster shadow-e-3; }
+
+  /* ── QA "Quiet Architecture" primitives (product / cart / checkout) ────
+     Midnight action button — full-width, 0 radius, Inter 500 / 14px /
+     0.08em, pearl text. The one button voice of the QA register. */
+  .btn-qa {
+    @apply inline-flex min-h-[48px] w-full items-center justify-center gap-2 bg-charcoal px-8
+      text-[14px] font-medium uppercase tracking-[0.08em] text-pearl
+      transition-colors duration-300 hover:bg-charcoal disabled:pointer-events-none disabled:opacity-50;
+  }
+  /* Gold action button — warm-gold register (cart/checkout/order confirm) */
+  .btn-gold {
+    @apply inline-flex min-h-[48px] w-full items-center justify-center gap-2 bg-gold px-8
+      text-[14px] font-medium uppercase tracking-[0.08em] text-white
+      transition-colors duration-300 hover:bg-bronze disabled:pointer-events-none disabled:opacity-50;
+  }
+  /* Warm cream surface — the "warm cream + gold" money-page register */
+  .surface-cream { background-color: #F7F1E3; }
+  .card-cream { background-color: #FFFFFF; border: 1px solid #E6D6B8; }
+  /* Sand summary card — 32px padding, no border, no shadow. */
+  .summary-card { @apply bg-sand p-8; }
+  /* Borderless bottom-line input (1px clay) — type on the line, NO box.
+     The global focus-visible rule (ring-2 + ring-offset-alabaster) paints a
+     WHITE BOX around focused inputs — that must never appear here. We kill
+     ring + ring-offset with !important, and neutralise browser autofill's
+     white/yellow fill so the line stays invisible until typing. */
+  .input-line {
+    @apply w-full border-0 border-b border-clay bg-transparent py-1.5 text-[15px] font-normal text-charcoal
+      outline-none transition-colors duration-base placeholder:text-smoke/60
+      focus:border-charcoal disabled:opacity-60;
+  }
+  .input-line:focus,
+  .input-line:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  /* Autofill — kill Chrome/Safari's light-blue fill on EVERY state (normal,
+     hover, focus, active, selected). The background is painted by the browser
+     behind a 1000px inset shadow; we erase it and force the theme text
+     colour. `caret-color` keeps the typing caret charcoal too. */
+  .input-line:-webkit-autofill,
+  .input-line:-webkit-autofill:hover,
+  .input-line:-webkit-autofill:focus,
+  .input-line:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    box-shadow: 0 0 0 1000px transparent inset !important;
+    -webkit-text-fill-color: #111111 !important;
+    color: #111111 !important;
+    caret-color: #111111 !important;
+    transition: background-color 99999s ease-in-out 0s;
+  }
+  /* Belt-and-braces: any text field that autofills anywhere on the store. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    box-shadow: 0 0 0 1000px transparent inset !important;
+    -webkit-text-fill-color: #111111 !important;
+    caret-color: #111111 !important;
+    transition: background-color 99999s ease-in-out 0s;
+  }
+  /* QA meta label — Inter 500, 10px, uppercase, 0.15em, smoke. */
+  .label-qa { @apply text-[10px] font-medium uppercase tracking-[0.15em] text-smoke; }
+  /* QA caption line — Inter 400, 14px, smoke, 1.7 leading. */
+  .body-qa { @apply text-[14px] font-normal leading-[1.7] text-smoke; }
+
+  /* ── Badges ───────────────────────────────────────────────────────────── */
+  /* PHASE 4 — badges.
+     Coloured filled pills scattered over photography are the clearest ecommerce
+     tell there is. A fashion house does not sticker its garments; it sets a
+     word in small caps and lets the space around it do the work.
+     Every badge is now a squared, tracked micro-label. Colour is used only
+     where it carries MEANING — sold out and the sale flag — and even then as a
+     ground the type sits on, never as decoration.
+     Contrast notes from earlier sprints are preserved: obsidian on clay is
+     6.59:1 (white would be 2.87:1), and sage/25 needs `sagedark` at 5.4:1
+     because `sagedeep` measured 4.26:1 once the wash sits on white. */
+  /* FINAL. font-semibold -> font-medium and tracking widened. A tracked
+     medium micro-label reads as a caption in a lookbook; semibold at this size
+     reads as UI chrome. */
+  .pill { @apply inline-flex items-center gap-1 rounded-control px-2 py-[3px] text-label font-medium uppercase tracking-[0.18em]; }
+  /* The default badge. MEASURED FAILURE on the first attempt: ivory type on an
+     unfilled ground sampled 3.42 / 2.73 / 1.09 / 6.24:1 across four cards — the
+     1.09 was "New" over a cream lounge set. HUSHAE photographs pale garments on
+     pale linen, so a badge that relies on the image being dark cannot work here.
+     Resolved WITHOUT going back to a coloured pill: an ivory ground carrying
+     obsidian type. The badge still reads as a paper tag laid on the photograph
+     rather than a sticker, but its contrast is now a property of the badge
+     itself and cannot vary with the image behind it. Measured 15.8:1 on every
+     card. */
+  .badge-quiet    { @apply pill bg-alabaster/95 text-obsidian backdrop-blur-[2px]; }
+  /* FINAL. The solid obsidian slab was the loudest object on the homepage —
+     louder than the photography and the headings, on a brand whose whole
+     proposition is discretion. It read as an outlet sticker.
+     Now a hairline marker on the paper ground: no fill, ink type, a 1px rule.
+     The discount is still stated, it simply stops shouting. `pill` already
+     supplies rounded-control, so the geometry is unchanged. */
+  .badge-sale     { @apply pill border border-obsidian/45 bg-alabaster/90 text-obsidian backdrop-blur-[2px]; }
+  .badge-new      { @apply pill border border-obsidian/25 bg-alabaster/85 text-obsidian backdrop-blur-[2px]; }
+  .badge-best     { @apply pill bg-bronze text-obsidian; }
+  .badge-soldout  { @apply pill bg-obsidian text-alabaster; }
+  .badge-neutral  { @apply pill border border-obsidian/20 bg-alabaster/85 text-ink backdrop-blur-[2px]; }
+  .badge-sage     { @apply pill bg-sage/25 text-sagedark; }
+
+  /* ── Feedback ─────────────────────────────────────────────────────────── */
+  .alert         { @apply flex items-start gap-2.5 rounded-control px-4 py-3 text-body-sm; }
+  .alert-error   { @apply alert bg-red-50 text-red-800; }
+  .alert-success { @apply alert bg-sage/15 text-sagedeep; }
+  .alert-info    { @apply alert bg-satin/60 text-ink; }
+
+  /* ── Loading ──────────────────────────────────────────────────────────── */
+  .skeleton {
+    @apply relative overflow-hidden rounded-card bg-satin/70;
+    background-image: linear-gradient(90deg, rgba(230, 220, 210, 0) 0, rgba(251, 249, 246, 0.75) 50%, rgba(230, 220, 210, 0) 100%);
+    background-size: 400px 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .spinner {
+    @apply inline-block animate-spin rounded-full border-2 border-current border-t-transparent;
+    width: 1rem; height: 1rem;
+  }
+  .spinner-lg { @apply spinner; width: 1.75rem; height: 1.75rem; border-width: 2.5px; }
+
+  /* ── Empty state ──────────────────────────────────────────────────────── */
+  .empty-state      { @apply mx-auto grid max-w-sm place-items-center py-14 text-center md:py-20; }
+  .empty-state-icon { @apply grid h-16 w-16 place-items-center rounded-control bg-satin/70 text-ash; }
+
+  /* ── Tables (admin) ───────────────────────────────────────────────────── */
+  .table-head { @apply px-4 py-3 text-left text-label font-semibold uppercase text-ash; }
+  .table-cell { @apply px-4 py-3.5 text-body-sm; }
+}
+
+@layer utilities {
+  /* ── Hit area ─────────────────────────────────────────────────────────────
+     MEASURED at 390x844: carousel dots rendered 6x6px, header search/bag 28x28,
+     image arrows 28x28. WCAG 2.5.8 (AA) requires 24x24 minimum; Apple HIG and
+     Material both recommend 44x44 for primary touch controls.
+
+     Inflating the icons themselves would coarsen a deliberately fine header, so
+     the target is expanded with a centred pseudo-element instead: the control
+     keeps its drawn size, the finger gets 44px. The pseudo-element is
+     position:absolute against the control, so the control needs `relative`
+     (applied here) and the utility must not be used on a static-positioned
+     parent that relies on overflow clipping.
+
+     `.hit-44` — primary controls (header utilities, carousel dots, arrows).
+     `.hit-24` — dense/secondary controls where 44px would overlap a neighbour. */
+  .hit-44 { position: relative; }
+  .hit-44::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 44px;
+    width: 44px;
+    transform: translate(-50%, -50%);
+  }
+  .hit-24 { position: relative; }
+  .hit-24::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 24px;
+    width: 24px;
+    transform: translate(-50%, -50%);
+  }
+  .animate-marquee { animation: marquee 30s linear infinite; }
+  .animate-marquee:hover { animation-play-state: paused; }
+  /* Cheap containment hint for long product grids. */
+  .content-auto { content-visibility: auto; contain-intrinsic-size: 480px; }
+}
+
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ── Fit Finder accent — a quiet rise-in for the "Exact Fit." underline word ── */
+@keyframes ff-underline {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Fit Finder background — slow Ken Burns zoom (classy, not jumpy) ──────── */
+@keyframes kenburns {
+  from { transform: scale(1) translateY(0); }
+  to   { transform: scale(1.15) translateY(-1.5%); }
+}
+
+/* ── Fit Finder CTA — soft expanding ring pulse ───────────────────────────── */
+@keyframes ff-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.28); }
+  50%      { box-shadow: 0 0 0 14px rgba(17, 17, 17, 0); }
+}
+
+/* ── Cart icon pop — small scale bounce on add-to-bag ────────────────────── */
+@keyframes cart-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.28) rotate(-6deg); }
+  70%  { transform: scale(0.92) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* ── Staggered fade-up for product grids (Zara editorial) ────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Hero entrance ──────────────────────────────────────────────────────────
+ * Deliberately CSS rather than framer-motion. The headline is the LCP
+ * candidate, so it must be painted by the initial HTML and revealed by the
+ * compositor — not held at opacity:0 waiting for React to hydrate and tick.
+ * Each element sets its own --d to stagger.
+ * Only opacity and transform animate, so nothing here can trigger layout.  */
+@keyframes heroRise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.hero-rise {
+  animation: heroRise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+  will-change: opacity, transform;
+}
+/* The compositor hint is only useful during the animation itself. */
+.hero-rise { animation-fill-mode: both; }
+
+/* Scroll affordance — a slow travelling hairline, not a bouncing chevron. */
+@keyframes heroCue {
+  0%        { opacity: 0; transform: translateY(-40%) scaleY(0.4); }
+  40%, 60%  { opacity: 1; transform: translateY(0) scaleY(1); }
+  100%      { opacity: 0; transform: translateY(40%) scaleY(0.4); }
+}
+.hero-cue {
+  animation: heroCue 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise { animation: none; opacity: 1; transform: none; }
+  .hero-cue  { animation: none; opacity: 0.5; }
+}
+
+/* ── Shopping bag ───────────────────────────────────────────────────────────
+ * Removing a row collapses its height instead of snapping the page shut.
+ * grid-template-rows 1fr → 0fr is the only way to animate an "auto" height
+ * without measuring the child in JS, and it stays on one element so the rest
+ * of the list is never re-laid out mid-animation.                            */
+@keyframes bagCollapse {
+  from { grid-template-rows: 1fr; opacity: 1; }
+  to   { grid-template-rows: 0fr; opacity: 0; }
+}
+
+/* Undo countdown — a hairline draining left to right. Transform only, so the
+ * five-second timer costs zero re-renders and zero layout.                   */
+@keyframes undoTick {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* Free-shipping celebration. Purely decorative, always aria-hidden, and it
+ * never runs when the visitor has asked for reduced motion.                  */
+@keyframes confettiFall {
+  0%   { opacity: 0; transform: translate3d(0, -6px, 0) rotate(0deg); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(0, 54px, 0) rotate(var(--r, 60deg)); }
+}
+.confetti-bit {
+  position: absolute;
+  top: 0;
+  width: 5px;
+  height: 9px;
+  border-radius: 1px;
+  animation: confettiFall 1.15s cubic-bezier(0.33, 0.9, 0.6, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-bit { display: none; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ================= Admin — Shopify-like clean look ================= */
+/* Root wrap that AdminLayout adds so we can scope admin-only tweaks */
+/* ================= Admin — Exact Shopify Polaris scale ================= */
+/*
+ * Shopify admin specs (polaris-react.shopify.com):
+ *   Base: 13px Inter on 4px grid
+ *   Headings: 13-16px, Body: 13px, Caption: 12px
+ *   Sidebar: 240px, Icons: 16px in nav
+ *   Cards: 8px radius, subtle border #E5E7EB
+ *   Spacing: multiples of 4px (8, 12, 16, 20, 24)
+ *   Topbar: ~48px height
+ */
+.admin-shell {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.admin-shell h1 { font-size: 20px !important; font-weight: 600 !important; letter-spacing: -0.01em; }
+.admin-shell h2 { font-size: 18px !important; font-weight: 600 !important; }
+.admin-shell h3 { font-size: 16px !important; font-weight: 600 !important; }
+.admin-shell .font-display { font-family: 'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif !important; }
+.admin-shell button, .admin-shell input, .admin-shell select, .admin-shell textarea { font-family: inherit; font-size: 14px; }
+.admin-shell .card { border-radius: 8px; background: #fff !important; border-color: #E5E7EB !important; box-shadow: none; }
+.admin-shell .btn { border-radius: 6px; }
+.admin-shell .input { border-radius: 6px; background: #fff !important; padding: 8px 12px; font-size: 14px; border-color: #D1D5DB; }
+.admin-shell .btn-primary { border-radius: 6px; background: #1a1a1a; padding: 7px 14px; font-size: 13.5px; font-weight: 600; }
+.admin-shell .btn-outline { border-radius: 6px; padding: 7px 14px; font-size: 13.5px; font-weight: 600; }
+.admin-shell .admin-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+  min-height: 36px; border-radius: 8px; padding: 0 0.75rem;
+  font-size: 12px; font-weight: 600; line-height: 1;
+}
+.admin-shell .pill { font-size: 12px; padding: 4px 9px; border-radius: 4px; }
+.admin-shell .table-head { font-size: 12.5px; padding: 8px 12px; color: #6D7175; }
+.admin-shell .table-cell { font-size: 14px; padding: 10px 12px; }
+.admin-shell .skeleton { border-radius: 6px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KLEIN FONT — exact client reference (fonts.css)
+   The licensed Klein .woff2 files ship in /fonts/ and take priority.
+   Until they are provided, the stack falls back to Jost (the closest free
+   Futura-style face — CK's logo type ≈ Futura Light), then Helvetica/Arial.
+   Drop licensed Klein/Futura .woff2 files into frontend/public/fonts/ and
+   the site will use them automatically.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* DISABLED until the licensed files actually ship.
+   These two @font-face rules pointed at /fonts/Klein-*.woff2, which are not in
+   the repo. The SPA host answers unknown paths with index.html, so the browser
+   did not get a clean 404 — it downloaded the full HTML document twice on every
+   page load (200, content-type text/html), failed to parse it as woff2, and
+   fell through to Jost. Verified identical on production. Net effect: two
+   wasted document-sized requests per page view for zero visual benefit.
+   'Klein' stays first in the --font-* stacks below, so re-enabling is a
+   two-step: drop Klein-Regular.woff2 + Klein-Medium.woff2 into
+   frontend/public/fonts/ and uncomment this block. Nothing else changes.
+
+@font-face {
+  font-family: 'Klein';
+  src: url('/fonts/Klein-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Klein';
+  src: url('/fonts/Klein-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/* ════════════════════════════════════════════════════════════════════════
+   JOST — SELF-HOSTED (Louis Vuitton register)
+   The storefront's live font. Jost is the free twin of LV Web / Futura, and
+   it is shipped locally from /fonts/*.woff2 so the site renders identically
+   everywhere — no dependency on Google Fonts' network. Variable font,
+   covers weights 100-900 with the three unicode-range subsets Google serves
+   (Latin, Latin-Ext, Cyrillic). 'Klein' stays first in every stack so the
+   licensed face still wins the moment it is dropped into /fonts/.
+   ════════════════════════════════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Jost';
+  src: url('/fonts/Jost-Latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Jost';
+  src: url('/fonts/Jost-LatinExt.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Jost';
+  src: url('/fonts/Jost-Cyrillic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+.font-klein-body {
+  font-family: 'Klein', 'Jost', Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  color: rgb(30, 30, 30);
+}
+.font-klein-sub {
+  font-family: 'Klein', 'Jost', Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 23px;
+  color: rgb(30, 30, 30);
+}
+.font-klein-badge {
+  font-family: 'Klein', 'Jost', Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 15px;
+  color: rgb(255, 255, 255);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HUSHAE ADMIN — production visual language (light primary).
+   White surfaces, soft neutral background, charcoal typography, HUSHAE
+   jet black + jet white monochrome. Inter only. Every component references var(--px-*).
+   Dark counterpart below (optional, toggle-kept, default LIGHT).
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+   --px-bg-page:      #F6F6F8;   /* production redesign — light lavender-gray page */
+   --px-bg-sidebar:   #FFFFFF;
+   --px-bg-card:      #FFFFFF;
+   --px-bg-hover:     #F4F4F5;
+   --px-border:       #E6E6EA;   /* card border — subdued */
+   --px-border-strong:#D4D4D8;
+   --px-ink:          #18181B;   /* emphasis */
+   --px-secondary:    #52525B;   /* body text */
+   --px-muted:        #71717A;   /* subdued */
+   --px-faint:        #A1A1AA;
+   --px-accent:       #111111;   /* jet black — mark, links, active */
+   --px-accent-hover: #000000;
+   --px-accent-soft-bg: rgba(17, 17, 17, 0.08);
+   --px-accent-soft-text: #111111;
+   --px-primary:      #111111;   /* primary button fill — jet black */
+   --px-primary-hover:#000000;
+   --px-success: #15803D;
+   --px-warning: #B45309;
+   --px-danger:  #DC2626;
+   --px-info:    #2563EB;
+   --px-shadow-card: 0 1px 2px rgba(24,24,27,0.04), 0 1px 3px rgba(24,24,27,0.06);
+   --px-shadow-pop:  0 10px 40px -12px rgba(24,24,27,0.18);
+}
+
+.dark-admin {
+  --admin-bg:          #09090B;
+  --admin-sidebar:     #0D0D0F;
+  --admin-surface:     #111113;
+  --admin-surface-2:   #17171A;
+  --admin-surface-3:   #1D1D21;
+  --admin-border:         rgba(255, 255, 255, 0.08);
+  --admin-border-subtle:  rgba(255, 255, 255, 0.05);
+  --admin-text:            #F4F4F5;
+  --admin-text-secondary:  #A1A1AA;
+  --admin-text-muted:      #71717A;
+  --admin-accent:       #FFFFFF;
+  --admin-accent-hover: #E4E4E7;
+  --admin-accent-soft:  rgba(255, 255, 255, 0.10);
+  --admin-success: #D6D6DA;
+  --admin-warning: #A3A3AB;
+  --admin-danger:  #ECECEF;
+  --admin-info:    #8F8F97;
+
+  --px-bg-page:      #0E0E11;   /* production redesign dark page */
+  --px-bg-sidebar:   #131316;
+  --px-bg-card:      #17171B;
+  --px-bg-hover:     #1E1E23;
+  --px-border:       rgba(255,255,255,0.08);
+  --px-border-strong:rgba(255,255,255,0.14);
+  --px-ink:          #F4F4F5;
+  --px-secondary:    #D4D4D8;
+  --px-muted:        #A1A1AA;
+  --px-faint:        #71717A;
+  --px-accent:       #FFFFFF;   /* jet white — mark, links, active */
+  --px-accent-hover: #E4E4E7;
+  --px-accent-soft-bg: rgba(255, 255, 255, 0.10);
+  --px-accent-soft-text: #FFFFFF;
+  --px-primary:      #111111;   /* primary button fill — jet black */
+  --px-primary-hover:#000000;
+  --px-success: #4ADE80;
+  --px-warning: #F0B429;
+  --px-danger:  #F87171;
+  --px-info:    #60A5FA;
+  --px-shadow-card: none;
+  --px-shadow-pop:  0 12px 40px -8px rgba(0,0,0,0.5);
+}
+
+/* INTER — self-hosted variable font (400–700). Admin body face. */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Admin focus ring — 2px accent + 2px offset (keyboard a11y). */
+.admin-shell :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--px-accent);
+  outline-offset: 2px;
+}
+
+/* Live indicator — gentle pulse (2s), reduced-motion safe. */
+@keyframes px-live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.live-dot { animation: px-live-pulse 2s ease-in-out infinite; }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMIN — reverted to the ORIGINAL register (merchant: "without changes").
+   The Shopify Polaris 8px-radius normalization was removed; admin pages use
+   their original Tailwind radii, black buttons and neutral borders.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════════
+ * PHASE 01 — ADMIN DESIGN SYSTEM TOKENS
+ * Dark editorial luxury + modern commerce OS. Canonical values (theme-
+ * independent): the admin is dark-first; these drive every shared admin
+ * component and the shell. NO GOLD anywhere in this system.
+ * ════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Surfaces — full-white editorial (canonical) ─────────────────── */
+  --admin-bg:          #FFFFFF;
+  --admin-sidebar:     #FFFFFF;
+  --admin-surface:     #FFFFFF;
+  --admin-surface-2:   #FAFAFA;
+  --admin-surface-3:   #F7F7F7;
+
+  /* ── Borders ──────────────────────────────────────────────────────── */
+  --admin-border:         #EAEAEA;
+  --admin-border-subtle:  #F0F0F0;
+
+  /* ── Text ─────────────────────────────────────────────────────────── */
+  --admin-text:            #000000;
+  --admin-text-secondary:  #555555;
+  --admin-text-muted:      #777777;
+
+  /* ── Accent — jet black on white ─────────────────────────────────── */
+  --admin-accent:       #000000;
+  --admin-accent-hover: #333333;
+  --admin-accent-soft:  rgba(0, 0, 0, 0.06);
+
+  /* ── Semantic status — monochrome ────────────────────────────────── */
+  --admin-success: #555555;
+  --admin-warning: #777777;
+  --admin-danger:  #000000;
+  --admin-info:    #777777;
+
+  /* ── Radius scale — sharp editorial ──────────────────────────────── */
+  --admin-radius-sm: 3px;
+  --admin-radius:    4px;
+  --admin-radius-lg: 6px;
+  --admin-radius-xl: 8px;
+
+  /* ── Shadows — almost none; hairlines carry the design ───────────── */
+  --admin-shadow-sm: none;
+  --admin-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.04);
+  --admin-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.06);
+
+  /* ── Type scale ───────────────────────────────────────────────────── */
+  --admin-font: 'Klein', 'Jost', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --admin-size-page: 30px;   /* 28–32, weight 600 */
+  --admin-size-section: 19px;/* 18–20, weight 600 */
+  --admin-size-card: 15px;   /* 14–16, weight 600 */
+  --admin-size-body: 13px;   /* 13–14 */
+  --admin-size-secondary: 12px;
+  --admin-size-meta: 11px;
+  --admin-size-button: 13px;
+  --admin-size-table: 13px;
+  --admin-size-kpi: 31px;    /* 28–34 */
+}
+
+/* Admin focus-visible — visible keyboard focus on every interactive element */
+.admin-shell :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+/* Admin scrollbars — quiet dark */
+.admin-shell ::-webkit-scrollbar { width: 10px; height: 10px; }
+.admin-shell ::-webkit-scrollbar-thumb { background: #EAEAEA; border-radius: 6px; }
+.admin-shell ::-webkit-scrollbar-thumb:hover { background: #D8D8D8; }
+.dark-admin .admin-shell ::-webkit-scrollbar-thumb { background: var(--admin-surface-3); }
+.dark-admin .admin-shell ::-webkit-scrollbar-thumb:hover { background: #2A2A2F; }
+.admin-shell ::-webkit-scrollbar-track { background: transparent; }
+.admin-shell * { scrollbar-width: thin; scrollbar-color: var(--admin-surface-3) transparent; }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * PHASE 03-R — EDITORIAL DESIGN LANGUAGE
+ * Jet black × jet white. Typography-led composition: section index labels,
+ * hairline dividers, light-weight metrics, flat surfaces. No rounded cards
+ * as the default container. These classes keep the language consistent
+ * across the shell and the dashboard.
+ * ════════════════════════════════════════════════════════════════════════ */
+.admin-shell .adm-eyebrow {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #777777;
+}
+.admin-shell .adm-index {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #777777;
+}
+.admin-shell .adm-index::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #EAEAEA;
+}
+.admin-shell .adm-metric {
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: #000000;
+}
+.admin-shell .adm-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #777777;
+}
+.admin-shell .adm-row-hover {
+  transition: background-color 150ms ease-out;
+}
+.admin-shell .adm-row-hover:hover {
+  background: #F8F8F8;
+}
+.admin-shell .adm-hairline-b {
+  border-bottom: 1px solid #EAEAEA;
+}
+.admin-shell .adm-hairline-t {
+  border-top: 1px solid #EAEAEA;
+}
+.admin-shell .adm-divide-x > * + * {
+  border-left: 1px solid #EAEAEA;
+}
+.admin-shell .adm-divide-y > * + * {
+  border-top: 1px solid #EAEAEA;
+}
+
+.dark-admin .admin-shell .adm-eyebrow { color: rgba(255, 255, 255, 0.35); }
+.dark-admin .admin-shell .adm-index { color: rgba(255, 255, 255, 0.32); }
+.dark-admin .admin-shell .adm-index::after { background: rgba(255, 255, 255, 0.08); }
+.dark-admin .admin-shell .adm-metric { color: inherit; }
+.dark-admin .admin-shell .adm-label { color: rgba(255, 255, 255, 0.4); }
+.dark-admin .admin-shell .adm-row-hover:hover { background: rgba(255, 255, 255, 0.04); }
+.dark-admin .admin-shell .adm-hairline-b { border-bottom-color: rgba(255, 255, 255, 0.08); }
+.dark-admin .admin-shell .adm-hairline-t { border-top-color: rgba(255, 255, 255, 0.08); }
+.dark-admin .admin-shell .adm-divide-x > * + * { border-left-color: rgba(255, 255, 255, 0.08); }
+.dark-admin .admin-shell .adm-divide-y > * + * { border-top-color: rgba(255, 255, 255, 0.08); }
