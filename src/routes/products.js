@@ -1,0 +1,486 @@
+const express = require('express');
+const Product = require('../models/Product');
+const { protect, adminOnly } = require('../middleware/auth');
+const { asyncHandler, slugify } = require('../utils/helpers');
+const flow = require('../utils/orderFlow');
+
+const router = express.Router();
+
+const SORTS = {
+  'newest': { createdAt: -1 },
+  'popular': { ratingCount: -1, ratingAvg: -1 },
+  'price-asc': { price: 1 },
+  'price-desc': { price: -1 },
+};
+
+/** Card/list payload — skip long description/care text that was ~60KB of /products. */
+const LIST_FIELDS = [
+  'name', 'slug', 'price', 'compareAtPrice', 'onSale', 'saleStart', 'saleEnd',
+  'stock', 'images', 'gender', 'categorySlug', 'tier', 'fabric', 'ratingAvg',
+  'ratingCount', 'sizes', 'colors', 'isNewArrival', 'isBestSeller', 'badges',
+  'shortDescription',
+].join(' ');
+
+function slimList(products) {
+  for (const p of products) {
+    if (Array.isArray(p.images) && p.images.length > 2) p.images = p.images.slice(0, 2);
+  }
+  return products;
+}
+
+function buildQuery(req, { adminView = false } = {}) {
+  const q = {};
+  if (!adminView) { q.isActive = true; q.status = { $ne: 'draft' }; }
+  else if (req.query.status === 'draft') q.status = 'draft';
+  else if (req.query.status === 'active') q.status = { $ne: 'draft' };
+  if (adminView && req.query.active === '0') q.isActive = false;
+  if (adminView && req.query.active === '1') q.isActive = true;
+  const { gender, category, tier, size, color, badge, tag, minPrice, maxPrice, q: search, ids } = req.query;
+  if (gender) q.gender = gender;
+  if (category) q.categorySlug = category;
+  if (tier) q.tier = tier;
+  if (size) q.sizes = size;
+  if (color) q['colors.name'] = new RegExp(`^${color}$`, 'i');
+  if (badge) q.badges = badge;
+  if (tag) {
+    // Support comma-separated tags: ?tag=wedding,summer -> any-of match
+    const tags = String(tag).split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+    if (tags.length) q.tags = { $in: tags };
+  }
+  if (req.query.featured === 'true') q.isFeatured = true;
+  if (req.query.bestSeller === 'true') q.isBestSeller = true;
+  if (req.query.newArrival === 'true') q.isNewArrival = true;
+  if (req.query.sale === 'true') {
+    /* v2 — sale windows. `compareAtPrice != null` used to mean "on sale",
+       which put EVERY product in the Sale page and printed "% off" on every
+       card. Now a product is on sale only when the merchant switched the sale
+       on AND a real was-price exists AND the window is open. */
+    const sf = Product.saleFilter();
+    q.$and = [...(q.$and || []), ...(sf.$and || [])];
+  }
+  if (minPrice || maxPrice) {
+    q.price = {};
+    if (minPrice) q.price.$gte = Number(minPrice);
+    if (maxPrice) q.price.$lte = Number(maxPrice);
+  }
+  if (ids) {
+    // The theme editor stores hand-picked products by slug (stable, readable);
+    // other callers pass ObjectIds. Accept either, in one query.
+    const list = String(ids).split(',').map((x) => x.trim()).filter(Boolean);
+    const objectIds = list.filter((x) => /^[0-9a-fA-F]{24}$/.test(x));
+    const slugs = list.filter((x) => !/^[0-9a-fA-F]{24}$/.test(x));
+    const or = [];
+    if (objectIds.length) or.push({ _id: { $in: objectIds } });
+    if (slugs.length) or.push({ slug: { $in: slugs } });
+    if (or.length === 1) Object.assign(q, or[0]);
+    else if (or.length > 1) q.$and = [...(q.$and || []), { $or: or }];
+  }
+  if (search) {
+    const rx = new RegExp(String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    q.$or = [{ name: rx }, { sku: rx }, { categorySlug: rx }]; // search by name, SKU or category
+  }
+  if (req.query.stock === 'low') q.stock = { $lte: 5 };
+  if (req.query.stock === 'out') q.stock = 0;
+  return q;
+}
+
+// Trending products — computed from recent order frequency (last 30 days)
+// Returns [{ _id, name, slug, price, image, stock, orderCount, unitsSold, revenue }]
+router.get('/trending', asyncHandler(async (req, res) => {
+  const days = Math.min(90, Math.max(1, parseInt(req.query.days || '30', 10)));
+  const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '8', 10)));
+  const since = new Date(Date.now() - days * 86400000);
+
+  const Order = require('../models/Order');
+  const rows = await Order.aggregate([
+    { $match: { createdAt: { $gte: since }, status: { $nin: ['Cancelled', 'Refunded'] } } },
+    { $unwind: '$items' },
+    { $group: {
+      _id: '$items.product',
+      orderCount: { $addToSet: '$_id' },
+      unitsSold: { $sum: '$items.quantity' },
+      revenue: { $sum: '$items.lineTotal' },
+    } },
+    { $addFields: { orderCount: { $size: '$orderCount' } } },
+    { $sort: { unitsSold: -1, orderCount: -1 } },
+    { $limit: limit },
+  ]);
+
+  // Attach product info
+  const ids = rows.map((r) => r._id).filter(Boolean);
+  const products = await Product.find({ _id: { $in: ids }, isActive: true, status: { $ne: 'draft' } })
+    .select('name slug price compareAtPrice onSale saleStart saleEnd stock images gender categorySlug tier fabric ratingAvg sizes colors isNewArrival isBestSeller');
+  const map = new Map(products.map((p) => [String(p._id), p.toObject()]));
+
+  const out = rows
+    .map((r) => {
+      const p = map.get(String(r._id));
+      if (!p) return null;
+      return { ...p, orderCount: r.orderCount, unitsSold: r.unitsSold, revenue: r.revenue };
+    })
+    .filter(Boolean);
+
+  res.json({ products: out, days });
+}));
+
+// Homepage shelves in one round-trip (PK → US was 4 serial/parallel HTTP calls).
+router.get('/home', asyncHandler(async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
+  const base = { isActive: true, status: { $ne: 'draft' } };
+  const [newArrivals, women, men, sale] = await Promise.all([
+    Product.find({ ...base, isNewArrival: true }).sort({ createdAt: -1 }).limit(4).select(LIST_FIELDS).lean(),
+    Product.find({ ...base, gender: 'women' }).sort(SORTS.popular).limit(4).select(LIST_FIELDS).lean(),
+    Product.find({ ...base, gender: 'men' }).sort(SORTS.popular).limit(4).select(LIST_FIELDS).lean(),
+    Product.find({ ...base, ...Product.saleFilter() }).sort(SORTS.popular).limit(4).select(LIST_FIELDS).lean(),
+  ]);
+  let saleOut = sale;
+  if (!saleOut.length) {
+    saleOut = await Product.find({ ...base, isBestSeller: true }).sort(SORTS.popular).limit(4).select(LIST_FIELDS).lean();
+  }
+  res.json({
+    newArrivals: slimList(newArrivals),
+    women: slimList(women),
+    men: slimList(men),
+    sale: slimList(saleOut),
+  });
+}));
+
+// Admin list (must be before /:slug)
+router.get('/admin/list', protect, adminOnly, asyncHandler(async (req, res) => {
+  const q = buildQuery(req, { adminView: true });
+
+  /* Optional text search — name / SKU / category (DB-side; the admin list
+     is paged now so client-side search would only see one page). */
+  const term = String(req.query.q || '').trim();
+  if (term) {
+    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    q.$or = [{ name: rx }, { sku: rx }, { categorySlug: rx }];
+  }
+
+  const sort = SORTS[req.query.sort] || { createdAt: -1 };
+
+  /* Paged mode (?page=): server slice + totals + catalog counts for the
+     saved-view stat cards. No page param = legacy whole list (cap 300). */
+  if (req.query.page) {
+    const per = Math.min(100, Math.max(1, Number(req.query.per) || 20));
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const [total, products, agg] = await Promise.all([
+      Product.countDocuments(q),
+      Product.find(q).sort(sort).skip((page - 1) * per).limit(per).lean(),
+      Product.aggregate([{
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          draft: { $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] } },
+          archived: { $sum: { $cond: [{ $and: [{ $ne: ['$status', 'draft'] }, { $eq: ['$isActive', false] }] }, 1, 0] } },
+          live: { $sum: { $cond: [{ $and: [{ $ne: ['$status', 'draft'] }, { $ne: ['$isActive', false] }] }, 1, 0] } },
+          low: { $sum: { $cond: [{ $and: [{ $gt: ['$stock', 0] }, { $lte: ['$stock', 5] }] }, 1, 0] } },
+          oos: { $sum: { $cond: [{ $eq: ['$stock', 0] }, 1, 0] } },
+        },
+      }]),
+    ]);
+    const c = agg[0] || { total: 0, draft: 0, archived: 0, live: 0, low: 0, oos: 0 };
+    return res.json({ products, total, page, per, counts: c });
+  }
+
+  const products = await Product.find(q).sort(sort).limit(300);
+  res.json({ products });
+}));
+
+router.get('/', asyncHandler(async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
+  const q = buildQuery(req);
+  const limit = Math.min(Math.max(parseInt(req.query.limit || '24', 10) || 24, 1), 200);
+  const products = await Product.find(q)
+    .sort(SORTS[req.query.sort] || SORTS.popular)
+    .limit(limit)
+    .select(LIST_FIELDS)
+    .lean();
+  slimList(products);
+
+  // Hand-picked lists must come back in the exact order the merchant arranged
+  // them in the theme editor, so honour the ?ids= sequence instead of the sort.
+  if (req.query.ids) {
+    const order = String(req.query.ids).split(',').map((s) => s.trim());
+    const rank = new Map(order.map((id, i) => [id, i]));
+    const rankOf = (p) => {
+      if (rank.has(String(p._id))) return rank.get(String(p._id));
+      if (rank.has(p.slug)) return rank.get(p.slug);
+      return Infinity;
+    };
+    products.sort((a, b) => rankOf(a) - rankOf(b));
+  }
+
+  res.json({ products });
+}));
+
+// Related products — same category, exclude the current product, prefer in-stock
+router.get('/:slug/related', asyncHandler(async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=600, stale-while-revalidate=86400');
+  const p = await Product.findOne({ slug: req.params.slug, isActive: true, status: { $ne: 'draft' } }).lean();
+  if (!p) return res.json({ products: [] });
+  const products = await Product.find({
+    _id: { $ne: p._id },
+    isActive: true,
+    status: { $ne: 'draft' },
+    $or: [
+      { categorySlug: p.categorySlug, gender: p.gender },
+      { gender: p.gender, tier: p.tier },
+    ],
+  })
+    .sort({ stock: -1, isBestSeller: -1, ratingAvg: -1 })
+    .limit(8)
+    .select('name slug price compareAtPrice onSale saleStart saleEnd stock images gender categorySlug tier fabric ratingAvg sizes colors isNewArrival isBestSeller')
+    .lean();
+  res.json({ products });
+}));
+
+router.get('/:slug', asyncHandler(async (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
+  const product = await Product.findOne({ slug: req.params.slug, isActive: true, status: { $ne: 'draft' } }).lean();
+  if (!product) return res.status(404).json({ message: 'Product not found' });
+  res.json({ product });
+}));
+
+router.post('/', protect, adminOnly, asyncHandler(async (req, res) => {
+  const b = req.body || {};
+  if (!b.name || !b.gender || !b.tier || b.price === undefined) {
+    return res.status(400).json({ message: 'Name, gender, tier and price are required' });
+  }
+  const slug = slugify(b.slug || b.name);
+  if (await Product.findOne({ $or: [{ slug }, { sku: b.sku }] })) {
+    return res.status(409).json({ message: 'Slug or SKU already exists' });
+  }
+  const product = await Product.create({ ...b, slug });
+  try { require('../utils/auditLogger').logAction(req.user?.email, 'create', 'product', product.slug); } catch { /* noop */ }
+  res.status(201).json({ product });
+}));
+
+/* Duplicate a product — clone into a DRAFT so it never appears on the
+ * storefront until the merchant edits and publishes it. New slug/SKU so
+ * there are no unique-index collisions. Images are shared references. */
+router.post('/:id/duplicate', protect, adminOnly, asyncHandler(async (req, res) => {
+  const src = await Product.findById(req.params.id);
+  if (!src) return res.status(404).json({ message: 'Product not found' });
+
+  const baseName = `${src.name} (Copy)`;
+  let slug = slugify(baseName);
+  if (await Product.findOne({ slug })) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+  let sku = `${src.sku}-COPY`;
+  if (await Product.findOne({ sku })) sku = `${sku}-${Date.now().toString(36).slice(-4)}`;
+
+  const data = src.toObject();
+  delete data._id;
+  delete data.createdAt;
+  delete data.updatedAt;
+  delete data.__v;
+
+  const product = await Product.create({
+    ...data,
+    name: baseName,
+    slug,
+    sku,
+    status: 'draft',
+    isActive: false,
+  });
+  res.status(201).json({ product });
+}));
+
+/* Bulk update — apply the same patch to many products in one call.
+ * Body: { ids: [id1, id2, ...], patch: { field: value, ... } }
+ * Whitelisted fields: price, compareAtPrice, costPrice, stock, tier, isActive,
+ *                     isFeatured, isBestSeller, status, stockDelta (add/subtract)
+ * Returns: { updated: N, modifiedIds: [...] }
+ */
+/* ── RESTOCK RADAR — velocity-based reorder suggestions (30d) ──────────────
+ * sold-per-day from delivered+processing orders in the last 30 days;
+ * suggested = ceil(velocity * 30 * safety(1.5)) - current stock, floored at 0. */
+router.get('/restock-radar', protect, adminOnly, asyncHandler(async (req, res) => {
+  const since = new Date(Date.now() - 30 * 86400000);
+  const Order = require('../models/Order');
+  const orders = await Order.find({ createdAt: { $gte: since }, status: { $nin: ['Cancelled', 'Refunded'] } })
+    .select('items').lean();
+  const sold = {};
+  for (const o of orders) for (const it of o.items || []) {
+    sold[it.product] = (sold[it.product] || 0) + (it.quantity || 0);
+  }
+  const ids = Object.keys(sold);
+  if (!ids.length) return res.json({ suggestions: [] });
+  const prods = await Product.find({ _id: { $in: ids } }).select('name slug stock').lean();
+  const suggestions = prods
+    .map((p) => {
+      const velocity = (sold[String(p._id)] || 0) / 30;
+      const need = Math.ceil(velocity * 30 * 1.5) - (p.stock || 0);
+      return { id: String(p._id), name: p.name, slug: p.slug, stock: p.stock || 0, sold30: sold[String(p._id)] || 0, velocity: +velocity.toFixed(2), suggest: Math.max(0, need) };
+    })
+    .filter((x) => x.suggest > 0)
+    .sort((a, b) => b.suggest - a.suggest)
+    .slice(0, 10);
+  res.json({ suggestions });
+}));
+
+router.patch('/bulk', protect, adminOnly, asyncHandler(async (req, res) => {
+  const { ids = [], patch = {} } = req.body || {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ message: 'Select at least one product' });
+  }
+  if (ids.length > 500) {
+    return res.status(400).json({ message: 'Too many products in one batch (max 500)' });
+  }
+
+  const setDoc = {};
+  const incDoc = {};
+
+  // Direct numeric fields (null clears the value — e.g. remove a was-price)
+  ['price', 'compareAtPrice', 'costPrice', 'stock'].forEach((f) => {
+    if (patch[f] === null) { setDoc[f] = null; return; }
+    if (patch[f] !== undefined && patch[f] !== '') {
+      const n = Number(patch[f]);
+      if (!Number.isFinite(n) || n < 0) {
+        // skip invalid instead of failing the whole batch
+        return;
+      }
+      setDoc[f] = n;
+    }
+  });
+
+  // Sale window dates — null clears, valid ISO strings set
+  ['saleStart', 'saleEnd'].forEach((f) => {
+    if (patch[f] === null) { setDoc[f] = null; return; }
+    if (patch[f]) {
+      const d = new Date(patch[f]);
+      if (!Number.isNaN(d.getTime())) setDoc[f] = d;
+    }
+  });
+
+  // Stock delta (relative change, e.g. +50 or -10)
+  if (patch.stockDelta !== undefined && patch.stockDelta !== null && patch.stockDelta !== '') {
+    const n = Number(patch.stockDelta);
+    if (Number.isFinite(n) && n !== 0) incDoc.stock = n;
+  }
+
+  // Enums / strings
+  if (patch.tier && ['Economy', 'Standard', 'Premium'].includes(patch.tier)) {
+    setDoc.tier = patch.tier;
+  }
+  if (patch.status && ['active', 'draft'].includes(patch.status)) {
+    setDoc.status = patch.status;
+  }
+
+  // Booleans
+  ['isActive', 'isFeatured', 'isBestSeller', 'onSale'].forEach((f) => {
+    if (typeof patch[f] === 'boolean') setDoc[f] = patch[f];
+  });
+
+  // Category-margin update: apply a percentage change to price (e.g. +10% for all)
+  if (patch.priceChangePct !== undefined && patch.priceChangePct !== null && patch.priceChangePct !== '') {
+    const pct = Number(patch.priceChangePct);
+    if (Number.isFinite(pct) && pct !== 0) {
+      const factor = 1 + (pct / 100);
+      const products = await Product.find({ _id: { $in: ids } }).select('_id price');
+      for (const p of products) {
+        const newPrice = Math.round(p.price * factor);
+        await Product.updateOne({ _id: p._id }, { $set: { price: Math.max(1, newPrice) } });
+      }
+    }
+  }
+
+  const ops = {};
+  if (Object.keys(setDoc).length) ops.$set = setDoc;
+  if (Object.keys(incDoc).length) ops.$inc = incDoc;
+
+  if (!Object.keys(ops).length) {
+    return res.status(400).json({ message: 'Nothing to update' });
+  }
+
+  const result = await Product.updateMany({ _id: { $in: ids } }, ops);
+  res.json({ updated: result.modifiedCount, matched: result.matchedCount });
+}));
+
+// Quick stock adjust — set or delta on a single product (used by inline row editor)
+router.patch('/:id/stock', protect, adminOnly, asyncHandler(async (req, res) => {
+  const { stock, delta } = req.body || {};
+  const update = {};
+  if (stock !== undefined) {
+    const n = Number(stock);
+    if (!Number.isFinite(n) || n < 0) return res.status(400).json({ message: 'Invalid stock value' });
+    update.$set = { stock: n };
+  } else if (delta !== undefined) {
+    const n = Number(delta);
+    if (!Number.isFinite(n) || n === 0) return res.status(400).json({ message: 'Invalid delta' });
+    update.$inc = { stock: n };
+  } else {
+    return res.status(400).json({ message: 'Provide stock or delta' });
+  }
+  const before = await Product.findById(req.params.id).select('stock name').lean();
+  const p = await Product.findOneAndUpdate({ _id: req.params.id }, update, { new: true }).select('_id stock name');
+  if (!p) return res.status(404).json({ message: 'Product not found' });
+  /* Alert only on the downward crossing of the low-stock line — adjusting
+     an already-low product again must not re-ring the bell. */
+  const LOW = 5;
+  if (before && before.stock > LOW && p.stock <= LOW) {
+    flow.notify({
+      type: 'stock.low', severity: 'warning',
+      title: `Low stock — ${p.name}`,
+      body: `${p.stock} left (was ${before.stock})`,
+      link: '/admin/products',
+    }).catch(() => {});
+  }
+  res.json({ product: p });
+}));
+
+/* ── REORDER workflow (low-stock) ────────────────────────────────────────── */
+router.patch('/:id/reorder', protect, adminOnly, asyncHandler(async (req, res) => {
+  const p = await Product.findByIdAndUpdate(
+    req.params.id,
+    { $set: { reorderStatus: 'pending', reorderRequestedAt: new Date() } },
+    { new: true }
+  ).select('_id name stock reorderStatus reorderRequestedAt targetStock');
+  if (!p) return res.status(404).json({ message: 'Product not found' });
+  res.json({ product: p });
+}));
+
+router.patch('/:id/reorder/received', protect, adminOnly, asyncHandler(async (req, res) => {
+  const { stock } = req.body || {};
+  const update = { $set: { reorderStatus: '', reorderRequestedAt: null } };
+  if (stock !== undefined) {
+    const n = Number(stock);
+    if (!Number.isFinite(n) || n < 0) return res.status(400).json({ message: 'Invalid stock value' });
+    update.$set.stock = n;
+  }
+  const p = await Product.findByIdAndUpdate(req.params.id, update, { new: true })
+    .select('_id name stock reorderStatus');
+  if (!p) return res.status(404).json({ message: 'Product not found' });
+  res.json({ product: p });
+}));
+
+router.put('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: 'Product not found' });
+  const b = req.body || {};
+  const fields = ['name', 'sku', 'gender', 'category', 'categorySlug', 'tier', 'price', 'compareAtPrice',
+    'costPrice', 'stock', 'images', 'video', 'shortDescription', 'description', 'sizes', 'colors', 'fabric', 'badges', 'tags',
+    'care', 'isFeatured', 'isBestSeller', 'isNewArrival', 'isActive', 'status', 'ratingAvg', 'ratingCount', 'bundleSlug',
+    'onSale', 'saleStart', 'saleEnd', 'targetStock', 'barcode', 'weightGrams', 'reorderPoint', 'safetyStock', 'variants', 'meta'];
+  fields.forEach((f) => { if (b[f] !== undefined) product[f] = b[f]; });
+  if (b.slug) product.slug = slugify(b.slug);
+  await product.save();
+  try { require('../utils/auditLogger').logAction(req.user?.email, 'update', 'product', product.slug); } catch { /* noop */ }
+  res.json({ product });
+}));
+
+// Soft delete
+router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
+  const product = await Product.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+  if (!product) return res.status(404).json({ message: 'Product not found' });
+  res.json({ product, message: 'Product disabled' });
+}));
+
+// Hard delete — permanently removes the listing (admin only)
+router.delete('/:id/permanent', protect, adminOnly, asyncHandler(async (req, res) => {
+  const product = await Product.findByIdAndDelete(req.params.id);
+  if (!product) return res.status(404).json({ message: 'Product not found' });
+  res.json({ message: 'Product permanently deleted' });
+}));
+
+module.exports = router;

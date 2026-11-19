@@ -1,0 +1,70 @@
+const crypto = require('crypto');
+
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+const slugify = (s) =>
+  String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+// HS-YYYYMMDD-XXXXXX
+/* FINAL AUDIT. Placing a real COD order returned VL-20260801-ED770D: every
+   order number still carried the legacy VELOURA prefix. That string is printed
+   on the confirmation page, the tracking page, the packing slip and every
+   customer email — the old brand was reaching the customer on the single most
+   important document of the purchase.
+   Existing VL- orders keep their numbers; `track` matches on the stored string,
+   so historical orders are unaffected. Only newly generated numbers change. */
+const orderNumber = () => {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  return `HS-${ymd}-${rand}`;
+};
+
+// Check a discount doc against a subtotal; returns { ok, amount } or { ok:false, message }
+const evaluateDiscount = (discount, subtotal) => {
+  if (!discount || !discount.active) return { ok: false, message: 'This code is not valid' };
+  if (discount.expiresAt && new Date(discount.expiresAt) < new Date()) return { ok: false, message: 'This code has expired' };
+  if (discount.maxUses > 0 && discount.usedCount >= discount.maxUses) return { ok: false, message: 'This code has reached its usage limit' };
+  if (subtotal < discount.minSubtotal) return { ok: false, message: `This code needs a minimum order of PKR ${discount.minSubtotal.toLocaleString()}` };
+  const amount = discount.type === 'percent'
+    ? Math.round((subtotal * discount.value) / 100)
+    : Math.min(discount.value, subtotal);
+  if (amount <= 0) return { ok: false, message: 'This code is not valid' };
+  return { ok: true, amount };
+};
+
+/* ── Sale windows — the single source of truth for "is this product on sale".
+   Mirrors Product.saleFilter() and Product#isOnSale() for plain documents
+   (promotion engine, routes working with lean objects).
+   A product is on sale ONLY if: onSale flag + compareAtPrice > price +
+   sale window (start/end) currently open. compareAtPrice alone means nothing. */
+const isOnSale = (p, now = new Date()) => {
+  if (!p) return false;
+  if (p.onSale !== true) return false;
+  if (!(p.compareAtPrice > p.price)) return false;
+  if (p.saleStart && new Date(p.saleStart) > now) return false;
+  if (p.saleEnd && new Date(p.saleEnd) < now) return false;
+  return true;
+};
+
+/* ── Growth percentage between two values ────────────────────────────────
+   Single source of truth for every dashboard KPI trend (Revenue, Orders,
+   AOV, Profit, Cost) and the "compare" endpoint.
+
+   Returns:
+     · null  when `previous` is 0/absent/NaN — there is NO meaningful growth
+       rate from zero. (previous=0 & current=0 → "no data"; previous=0 &
+       current>0 → the UI shows "New".) Callers must never render a % for null.
+     · number otherwise, rounded to 1 decimal (e.g. -100 when current = 0).
+
+   The old behaviour (`!b ? (a > 0 ? 100 : 0) : …`) returned a fake 100% when
+   the previous period was zero — the KPI card then displayed a green ▲100%
+   where the honest answer is "New". */
+const growthPct = (current, previous) => {
+  const cur = Number(current) || 0;
+  const prev = Number(previous) || 0;
+  if (!prev) return null;
+  return Math.round(((cur - prev) / prev) * 1000) / 10;
+};
+
+module.exports = { asyncHandler, slugify, orderNumber, evaluateDiscount, isOnSale, growthPct };
